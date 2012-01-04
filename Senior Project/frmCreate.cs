@@ -1,16 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Windows.Forms;
 using System.IO;
+using System.Windows.Forms;
 
 namespace Senior_Project
 {
-    public partial class frmCreate : Form
+    partial class frmCreate : Form
     {
         #region Variables
 
@@ -36,10 +31,7 @@ namespace Senior_Project
         private void frmCreate_Load(object sender, EventArgs e)
         {
             createCode = 0;
-            board = new Board(10, 10);
-            for (int i = 0; i < 10; i++)
-                for (int j = 0; j < 10; j++)
-                    board[i, j] = new GamePiece(i, j, 0);
+            board = new Board();
             file = "";
         }
 
@@ -51,12 +43,14 @@ namespace Senior_Project
 
             if (showGrid)
             {
-                Pen p = new Pen(Color.Gray);
-                for (int i = 1; i < 10; i++)
-                {
-                    g.DrawLine(p, i * 48, 0, i * 48, picBoard.Height);
-                    g.DrawLine(p, 0, i * 48, picBoard.Width, i * 48);
-                }
+				using (Pen p = new Pen(Color.Gray))
+				{
+					for (int i = 1; i < 10; i++)
+					{
+						g.DrawLine(p, i * 48, 0, i * 48, picBoard.Height);
+						g.DrawLine(p, 0, i * 48, picBoard.Width, i * 48);
+					}
+				}
             }
         }
         
@@ -81,9 +75,9 @@ namespace Senior_Project
             int mousey = (int)(picBoard.PointToClient(Cursor.Position).Y);
 
             if (e.Button == MouseButtons.Left)
-                board[Board.CoordToIndex(mousex), Board.CoordToIndex(mousey)].code = createCode;
+                board[Board.CoordToIndex(mousex), Board.CoordToIndex(mousey)] = createCode;
             else if (e.Button == MouseButtons.Right)
-                board[Board.CoordToIndex(mousex), Board.CoordToIndex(mousey)].code = 0;
+                board[Board.CoordToIndex(mousex), Board.CoordToIndex(mousey)] = 0;
             saved = false;
 
             picBoard.Invalidate();
@@ -113,7 +107,7 @@ namespace Senior_Project
                 return;
 
             file = f;
-            board = new Board(10, 10, file);
+            board = new Board(file);
             picBoard.Invalidate();
         }
 
@@ -152,21 +146,23 @@ namespace Senior_Project
         private void Save()
         {
             // "Save as" if no file is saved
-            if (file == "")
+            if (string.IsNullOrEmpty(file))
                 GetFile();
-            if (file == "")
+            if (string.IsNullOrEmpty(file))
                 return;
-            
-            StreamWriter writer = new StreamWriter(file, false);
-            for (int i = 0; i < board.sizex; i++)
-            {
-                for (int j = 0; j < board.sizey; j++)
-                    writer.Write(board[i, j].code);
-                if (i != board.sizex - 1)
-                    writer.WriteLine();
-            }
-            writer.Flush();
-            writer.Dispose();
+
+			using (StreamWriter writer = new StreamWriter(file, false))
+			{
+				for (int i = 0; i < Board.SIZE_X; i++)
+				{
+					for (int j = 0; j < Board.SIZE_Y; j++)
+						writer.Write(board[i, j]);
+					if (i != Board.SIZE_X - 1)
+						writer.WriteLine();
+				}
+
+				writer.Flush();
+			}
             saved = true;
         }
 
@@ -180,7 +176,7 @@ namespace Senior_Project
             DialogResult d = sfd.ShowDialog();
             if (d == DialogResult.OK)
             {
-                if (sfd.FileName == "")
+                if (string.IsNullOrEmpty(sfd.FileName))
                     MessageBox.Show("Please specify a file name.");
                 file = sfd.FileName;
             }

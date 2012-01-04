@@ -1,13 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Drawing;
 using System.Windows.Forms;
 
 namespace Senior_Project
 {
-    class GamePiece
+    public sealed class GamePiece
     {
         private static readonly Image[] codes = { 
                                             null,
@@ -16,7 +13,10 @@ namespace Senior_Project
                                             Image.FromFile(Application.StartupPath + @"\3.bmp")
                                          };
 
-        public int code // An integer that represents the type of game piece
+		
+		private bool selected;
+
+        public int Code // An integer that represents the type of game piece
         {
             get { return ct; }
             set 
@@ -25,8 +25,8 @@ namespace Senior_Project
                 Sprite = codes[value]; 
             }
         }
-        public Image Sprite; // The piece's image
-        public bool selected; // Whether or not the piece is selected
+        public Image Sprite { get; set; } // The piece's image
+		public bool Selected { get { return selected; } set { selected = value; } } // Whether or not the piece is selected
         public int x, y; // The piece's position (in array coordinates) 
 
         private int ct;
@@ -34,7 +34,7 @@ namespace Senior_Project
         // Create a new game piece
         public GamePiece(int xp, int yp, int c)
         {
-            code = c;
+            Code = c;
             x = xp;
             y = yp;
             selected = false;
@@ -55,7 +55,7 @@ namespace Senior_Project
         // Return the code of the game piece as a string
         public override string ToString()
         {
-            return code.ToString();
+            return Code.ToString();
         }
     }
 }

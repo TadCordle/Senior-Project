@@ -1,27 +1,26 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
 namespace Senior_Project
 {
-    class AI2 : AI
+    sealed class AI2 : AI
     {
         #region Variables
         int maxX, maxY; // Bounds of the board
         int othercode; // AI's code and the opponent code
-        int[,] positioncheck = new int[,] { { 0, 1 }, { 1, 1 }, { 1, 0 }, { 1, -1 }, 
-                                     { 0, -1 }, { -1, -1 }, { -1, 0 }, { -1, 1 }, 
-                                     { 0, 2 }, { 2, 2 }, { 2, 0 }, { 2, -2 }, 
-                                     { 0, -2 }, { -2, -2 }, { -2, 0 }, {-2, 2 } }; // Relative move positions
+		int[][] positioncheck = new int[][] {
+									new[] { 0, 1 },  new[] { 1, 1 },   new[] { 1, 0 },  new[] { 1, -1 }, 
+                                    new[] { 0, -1 }, new[] { -1, -1 }, new[] { -1, 0 }, new[] { -1, 1 }, 
+                                    new[] { 0, 2 },  new[] { 2, 2 },   new[] { 2, 0 },  new[] { 2, -2 }, 
+                                    new[] { 0, -2 }, new[] { -2, -2 }, new[] { -2, 0 }, new[] {-2, 2 } }; // Relative move positions
 
         #endregion
 
         // Constructor
         public AI2(Board b, int ct) : base(b, ct)
         {
-            maxX = b.board.GetUpperBound(0);
-            maxY = b.board.GetUpperBound(1);
+            maxX = Board.SIZE_X - 1;
+			maxY = Board.SIZE_Y - 1;
             othercode = ct == 1 ? 2 : 1;
         }
 
@@ -69,23 +68,23 @@ namespace Senior_Project
             bool jump = false;
 
             // Go through all possible moves of each pieve of code 'code' on the board
-            foreach (GamePiece gp in board.board)
+            foreach (GamePiece gp in board)
             {
-                if (gp.code == code)
+                if (gp.Code == code)
                 {
                     for (int i = 0; i < 16; i++)
                     {
-                        if (gp.x + positioncheck[i, 0] <= maxX && gp.x + positioncheck[i, 0] >= 0 &&
-                            gp.y + positioncheck[i, 1] <= maxY && gp.y + positioncheck[i, 1] >= 0)
+						if (gp.x + positioncheck[i][0] <= maxX && gp.x + positioncheck[i][0] >= 0 &&
+							gp.y + positioncheck[i][1] <= maxY && gp.y + positioncheck[i][1] >= 0)
                         {
-                            if (board[gp.x + positioncheck[i, 0], gp.y + positioncheck[i, 1]].code != 0)
+							if (board[gp.x + positioncheck[i][0], gp.y + positioncheck[i][1]] != 0)
                                 continue;
                         }
                         else
                             continue;
 
                         // Count conversions
-                        int gain = board.Convert(gp.x + positioncheck[i, 0], gp.y + positioncheck[i, 1], ocode, ocode);
+						int gain = board.Convert(gp.x + positioncheck[i][0], gp.y + positioncheck[i][1], ocode, ocode);
                         if (i < 8) gain += 1;
 
                         // Save best move and add it to a list
@@ -99,7 +98,7 @@ namespace Senior_Project
                             if (i >= 8)
                                 jump = true;
                             greatest = gain;
-                            list.Add (new Move(gp.x, gp.y, gp.x + positioncheck[i, 0], gp.y + positioncheck[i, 1], i >= 8, gain));
+							list.Add(new Move(gp.x, gp.y, gp.x + positioncheck[i][0], gp.y + positioncheck[i][1], i >= 8, gain));
                         }
                     }
                 }
@@ -124,11 +123,11 @@ namespace Senior_Project
                     // Check number of pieces adjacent to open spot if move is a jump
                     for (int i = 0; i < 16; i++)
                     {
-                        if (!(m.xfrom + positioncheck[i, 0] <= maxX && m.xfrom + positioncheck[i, 0] >= 0 &&
-                              m.yfrom + positioncheck[i, 1] <= maxX && m.yfrom + positioncheck[i, 1] >= 0))
+						if (!(m.xfrom + positioncheck[i][0] <= maxX && m.xfrom + positioncheck[i][0] >= 0 &&
+							  m.yfrom + positioncheck[i][1] <= maxX && m.yfrom + positioncheck[i][1] >= 0))
                             continue;
 
-                        if (board[m.xfrom + positioncheck[i, 0], m.yfrom + positioncheck[i, 1]].code == othercode)
+						if (board[m.xfrom + positioncheck[i][0], m.yfrom + positioncheck[i][1]] == othercode)
                         {
                             lost = board.Convert(m.xfrom, m.yfrom, aicode, aicode);
                             break;
@@ -155,8 +154,8 @@ namespace Senior_Project
         private void ExecuteMove(Move move)
         {
             if (move.isjump)
-                board[move.xfrom, move.yfrom].code = 0;
-            board[move.xto, move.yto].code = aicode;
+                board[move.xfrom, move.yfrom] = 0;
+            board[move.xto, move.yto] = aicode;
             board.Convert(move.xto, move.yto, aicode, othercode);
         }
 

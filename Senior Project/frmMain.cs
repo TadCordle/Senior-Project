@@ -1,17 +1,14 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Windows.Forms;
-using System.Threading;
 using System.IO;
+using System.Reflection;
+using System.Security;
+using System.Threading;
+using System.Windows.Forms;
 
 namespace Senior_Project
 {
-    public partial class frmMain : Form
+    partial class frmMain : Form
     {
         #region Variables
 
@@ -29,6 +26,52 @@ namespace Senior_Project
         ThreadStart[] aiThreadStart;
         bool stopai; // Used to break out of AI thread when a new game is selected mid-turn
         const int aiSleepTime = 1; // Milliseconds AI pauses between turns
+		AutoResetEvent[] aiMove; // Signalling mechanism for AI processing.
+		AutoResetEvent aiMoveComplete = new AutoResetEvent(false);
+
+		Type ai1Type = typeof(AI1), // Default AI1 class.
+			 ai2Type = typeof(Nolan_AI.ICanSeeForever); // Default AI2 class.
+
+		public Type AI1Class
+		{
+			get { return this.ai1Type; }
+			set
+			{
+				if (!(value.IsSubclassOf(typeof(AI))))
+					throw new ArgumentException("AI does not subclass Senior_Project.AI!");
+
+				try
+				{
+					value.GetConstructor(new[] { typeof(Board), typeof(int) });
+				}
+				catch (Exception e)
+				{
+					throw new ArgumentException("AI does not implement expected constructor .ctor(Board, int)", e);
+				}
+
+				this.ai1Type = value;
+			}
+		}
+		public Type AI2Class
+		{
+			get { return this.ai2Type; }
+			set
+			{
+				if (!(value.IsSubclassOf(typeof(AI))))
+					throw new ArgumentException("AI does not subclass Senior_Project.AI!");
+
+				try
+				{
+					value.GetConstructor(new[] { typeof(Board), typeof(int) });
+				}
+				catch (Exception e)
+				{
+					throw new ArgumentException("AI does not implement expected constructor .ctor(Board, int)", e);
+				}
+
+				this.ai2Type = value;
+			}
+		}
 
         // Game types
         private enum GameType
@@ -59,10 +102,11 @@ namespace Senior_Project
                               "0000000000\n" +
                               "0000000000\n" +
                               "2000000001";
-                StreamWriter w = new StreamWriter(file);
-                w.Write(dflt);
-                w.Flush();
-                w.Close();
+				using (StreamWriter w = new StreamWriter(file))
+				{
+					w.Write(dflt);
+					w.Flush();
+				}
             }
 
             // Set up a game
@@ -71,18 +115,57 @@ namespace Senior_Project
 
             aiThread = new Thread[2];
             aiThreadStart = new ThreadStart[2];
+			aiMove = new[] { new AutoResetEvent(false), new AutoResetEvent(false) };
 
             aiThread[0] = new Thread(aiThreadStart[0] = new ThreadStart(delegate
             {
-                Thread.Sleep(aiSleepTime);
-                ai1.MakeMove();
+				while(!(stopai || endgame))
+				{
+					aiMove[0].WaitOne(); // Wait for signal.
+
+					Thread.Sleep(aiSleepTime); // Sleep before doing.
+
+					try
+					{
+						ai1.MakeMove();
+					}
+					catch (SecurityException ex)
+					{
+						MessageBox.Show("AI sandboxing exception! Current AI turn execution aborted.\n\n" + ex,
+							"Dynamic AI Loading",
+							MessageBoxButtons.OK,
+							MessageBoxIcon.Exclamation);
+					}
+
+					aiMoveComplete.Set(); // Tell main thread we've finished.
+				}
             }));
+			aiThread[0].IsBackground = true;
 
             aiThread[1] = new Thread(aiThreadStart[1] = new ThreadStart(delegate
             {
-                Thread.Sleep(aiSleepTime);
-                ai2.MakeMove();
+				while (!(stopai || endgame))
+				{
+					aiMove[1].WaitOne(); // Wait for signal.
+
+					Thread.Sleep(aiSleepTime); // Sleep before doing.
+
+					try
+					{
+						ai2.MakeMove();
+					}
+					catch (SecurityException ex)
+					{
+						MessageBox.Show("AI sandboxing exception! Current AI turn execution aborted.\n\n" + ex,
+							"Dynamic AI Loading",
+							MessageBoxButtons.OK,
+							MessageBoxIcon.Exclamation);
+					}
+					
+					aiMoveComplete.Set(); // Tell main thread we've finished.
+				}
             }));
+			aiThread[1].IsBackground = true;
         }
 
         // Load a level from a text file
@@ -121,63 +204,74 @@ namespace Senior_Project
         // Show board creation form
         private void mnuCreate_Click(object sender, EventArgs e)
         {
-            frmCreate c = new frmCreate();
-            c.ShowDialog();
+			using (frmCreate c = new frmCreate())
+			{
+				c.ShowDialog();
+			}
         }
 
         // Start a new game
         private void mnuNewGame_Click(object sender, EventArgs e)
         {
-            frmOpponent f = new frmOpponent();
-            DialogResult result = f.ShowDialog();
+			using (frmOpponent f = new frmOpponent())
+			{
+				DialogResult result = f.ShowDialog();
 
-            if (result != DialogResult.Cancel)
-            {
-                // Make sure board's file still exists if a new game is chosen
-                if (!File.Exists(file))
-                {
-                    MessageBox.Show("New game failed to load because board's file was not found.");
-                    return;
-                }
+				if (result != DialogResult.Cancel)
+				{
+					// Make sure board's file still exists if a new game is chosen
+					if (!File.Exists(file))
+					{
+						MessageBox.Show("New game failed to load because board's file was not found.");
+						return;
+					}
 
-                // Stop the AI if a new game is chosen while the AI is thinking
-                if (aiThread[0].IsAlive)
-                    aiThread[0].Abort();
-                if (aiThread[1].IsAlive)
-                    aiThread[1].Abort();
+					// Stop the AI if a new game is chosen while the AI is thinking
+					if (aiThread[0].IsAlive)
+						aiThread[0].Abort();
+					if (aiThread[1].IsAlive)
+						aiThread[1].Abort();
 
-                if (!endgame && (type == GameType.AIvsAI || (type == GameType.CPU && !playerTurn)))
-                    stopai = true;
-            }
+					if (!endgame && (type == GameType.AIvsAI || (type == GameType.CPU && !playerTurn)))
+						stopai = true;
+				}
 
-            // Set new game type based on the dialog's chosen item
-            if (result == DialogResult.OK)
-            {
-                if (!endgame && (type == GameType.AIvsAI))
-                    stopai = true;
-                SetGame(GameType.Human);
-            }
-            else if (result == DialogResult.Yes)
-            {
-                if (!endgame && (type == GameType.AIvsAI))
-                    stopai = true;
-                SetGame(GameType.CPU);
-            }
-            else if (result == DialogResult.Ignore)
-            {
-                stopai = false;
-                SetGame(GameType.AIvsAI);
+				// Set new game type based on the dialog's chosen item
+				if (result == DialogResult.OK)
+				{
+					if (!endgame && (type == GameType.AIvsAI))
+						stopai = true;
+                    if (!SetGame(GameType.Human))
+                        return;
+				}
+				else if (result == DialogResult.Yes)
+				{
+					if (!endgame && (type == GameType.AIvsAI))
+						stopai = true;
+					SetGame(GameType.CPU);
 
-                aiThread[0] = new Thread(aiThreadStart[0]);
-                aiThread[1] = new Thread(aiThreadStart[1]);
+                    aiThread[1] = new Thread(aiThreadStart[1]);
+                    aiThread[1].IsBackground = true;
+				}
+				else if (result == DialogResult.Ignore)
+				{
+					stopai = false;
+					if (!SetGame(GameType.AIvsAI))
+						return;
 
-                int c = 1;
-                while (!endgame && type == GameType.AIvsAI)
-                {
-                    DoAI(c);
-                    c = (c == 1 ? 2 : 1);
-                }
-            }
+					aiThread[0] = new Thread(aiThreadStart[0]);
+					aiThread[0].IsBackground = true;
+					aiThread[1] = new Thread(aiThreadStart[1]);
+					aiThread[1].IsBackground = true;
+
+					int c = 1;
+					while (!endgame && type == GameType.AIvsAI)
+					{
+						DoAI(c);
+						c = (c == 1 ? 2 : 1);
+					}
+				}
+			}
         }
 
         // Redraw the game board
@@ -190,20 +284,24 @@ namespace Senior_Project
             // Draw the grid if the checkbox is checked
             if (showGrid)
             {
-                Pen p = new Pen(Color.Gray);
-                for (int i = 1; i < 10; i++)
-                {
-                    g.DrawLine(p, i * 48, 0, i * 48, picBoard.Height);
-                    g.DrawLine(p, 0, i * 48, picBoard.Width, i * 48);
-                }
+				using (Pen p = new Pen(Color.Gray))
+				{
+					for (int i = 1; i < 10; i++)
+					{
+						g.DrawLine(p, i * 48, 0, i * 48, picBoard.Height);
+						g.DrawLine(p, 0, i * 48, picBoard.Width, i * 48);
+					}
+				}
             }
 
             // Draw a box around the selected piece
             GamePiece gp = board.SelectedPiece();
             if (gp != null)
             {
-                Pen p = new Pen(Color.Black);
-                g.DrawRectangle(p, Board.IndexToCoord(gp.x)+1, Board.IndexToCoord(gp.y)+1, 46, 46);
+				using (Pen p = new Pen(Color.Black))
+				{
+					g.DrawRectangle(p, Board.IndexToCoord(gp.x) + 1, Board.IndexToCoord(gp.y) + 1, 46, 46);
+				}
             }
         }
 
@@ -230,17 +328,17 @@ namespace Senior_Project
             {
                 if (playerTurn || type == GameType.Human)
                 {
-                    GamePiece clicked = board[Board.CoordToIndex(mousex), Board.CoordToIndex(mousey)];
-                    foreach (GamePiece g in board.board)
-                    {
-                        if (g == clicked)
-                            continue;
-                        g.selected = false;
-                    }
-                    if (clicked.selected)
-                        clicked.selected = false;
+                    GamePiece clicked = board.GetPieceAtPos(Board.CoordToIndex(mousex), Board.CoordToIndex(mousey));
+					foreach (GamePiece gp in board)
+					{
+						if (gp == clicked)
+							continue;
+						gp.Selected = false;
+					}
+                    if (clicked.Selected)
+                        clicked.Selected = false;
                     else
-                        clicked.selected = true;
+                        clicked.Selected = true;
                 }
             }
             // Move selected piece
@@ -259,7 +357,7 @@ namespace Senior_Project
 
                 // Set up next player's turn
                 playerTurn = !playerTurn;
-                board.SelectedPiece().selected = false;
+                board.SelectedPiece().Selected = false;
                 picBoard.Invalidate();
 
                 // If the next player can't move, fill in all reachable empty spaces
@@ -283,18 +381,13 @@ namespace Senior_Project
         private void DoAI(int code)
         {
             // Make AI execute its move
-            try
-            {
-                if (aiThread[code - 1].ThreadState != ThreadState.Running)
-                    aiThread[code - 1].Start();
-                while (aiThread[code - 1].IsAlive)
-                {
-                    Application.DoEvents();
-                    Thread.Sleep(10);
-                }
-                aiThread[code - 1] = new Thread(aiThreadStart[code - 1]);
-            }
-            catch (ThreadStateException) { }
+			if (!aiThread[code - 1].IsAlive)
+				aiThread[code - 1].Start();
+			aiMove[code - 1].Set();
+			while (!aiMoveComplete.WaitOne(10))
+				Application.DoEvents();
+
+			Application.DoEvents();
 
             // If a new game was chosen mid-AIvsAI game, reset the board
             if (stopai)
@@ -385,11 +478,12 @@ namespace Senior_Project
         }
 
         // Set up a new game with a type of "mode"
-        private void SetGame(GameType mode)
+		// returns false if setup fails, true otherwise.
+        private bool SetGame(GameType mode)
         {
             // Set up new game
             type = mode;
-            board = new Board(10, 10, file);
+            board = new Board(file);
             playerTurn = true;
             endgame = false;
             picBoard.Enabled = mode != GameType.AIvsAI;
@@ -413,10 +507,28 @@ namespace Senior_Project
                 HUD4.Text = "AI 2 Pieces:";
             }
 
-            ai1 = new AI1(board, 1);
-            ai2 = new AI2(board, 2);
+			// Catch attempts to violate sandboxing.
+			try
+			{
+				ai1 = Activator.CreateInstance(ai1Type, board, 1) as AI;
+				ai2 = Activator.CreateInstance(ai2Type, board, 2) as AI;
+			}
+			catch (TargetInvocationException ex)
+			{
+				if (ex.InnerException is SecurityException)
+				{
+					MessageBox.Show("AI sandboxing exception! Game execution aborted.\n\n" + ex.InnerException,
+						"Dynamic AI Loading",
+						MessageBoxButtons.OK,
+						MessageBoxIcon.Exclamation);
+
+					return false;
+				}
+				else throw;
+			}
 
             picBoard.Invalidate();
+			return true;
         }
 
         // Show extra forms
@@ -427,8 +539,10 @@ namespace Senior_Project
         }
         private void mnuHTP_Click(object sender, EventArgs e)
         {
-            frmPlayHelp f = new frmPlayHelp();
-            f.ShowDialog();
+			using (frmPlayHelp f = new frmPlayHelp())
+			{
+				f.ShowDialog();
+			}
         }
 
         // Exit the game
@@ -450,5 +564,23 @@ namespace Senior_Project
             endgame = true;
             Application.Exit();
         }
+
+		// Display AI chooser.
+		private void mnuChooseAI_Click(object sender, EventArgs e)
+		{
+			using (var aier = new frmAIChooser())
+			{
+				aier.AI1Type = this.ai1Type;
+				aier.AI2Type = this.ai2Type;
+
+				if (aier.ShowDialog() == DialogResult.OK)
+				{
+					if (aier.AI1Type != this.ai1Type)
+						this.ai1Type = aier.AI1Type;
+					if (aier.AI2Type != this.ai2Type)
+						this.ai2Type = aier.AI2Type;
+				}
+			}
+		}
     }
 }

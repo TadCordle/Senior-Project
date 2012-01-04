@@ -6,7 +6,7 @@ using System.Threading;
 
 namespace Senior_Project
 {
-    class AI1 : AI
+    sealed class AI1 : AI
     {
         int notaicode;
 
@@ -20,45 +20,46 @@ namespace Senior_Project
         {
             #region Variables
 
-            int aCount = board.Count(aicode); // AI count
+            //int aCount = board.Count(aicode); // AI count
             int naCount = board.Count(notaicode); // Opponent count
             
             int greatest = -1; // Count for best move
             int movex = 0, movey = 0, curx = 0, cury = 0; // Coordinates for move position and current position
-            int[,] positioncheck = new int[,] { { 0, 1 }, { 1, 1 }, { 1, 0 }, { 1, -1 }, 
-                                     { 0, -1 }, { -1, -1 }, { -1, 0 }, { -1, 1 }, 
-                                     { 0, 2 }, { 2, 2 }, { 2, 0 }, { 2, -2 }, 
-                                     { 0, -2 }, { -2, -2 }, { -2, 0 }, {-2, 2 } }; // Array of possible relative move locations
+			int[][] positioncheck = new int[][] {
+									new[] { 0, 1 },  new[] { 1, 1 },   new[] { 1, 0 },  new[] { 1, -1 }, 
+                                    new[] { 0, -1 }, new[] { -1, -1 }, new[] { -1,0 }, new[] { -1, 1 }, 
+                                    new[] { 0, 2 },  new[] { 2, 2 },   new[] { 2, 0 },  new[] { 2, -2 }, 
+                                    new[] { 0, -2 }, new[] { -2, -2 }, new[] { -2, 0 }, new[] {-2, 2 } }; // Array of possible relative move locations
             bool jumped = false; // Whether or not the current best move is a jump
             int gain = 0; // Conversion count from simulated move
             int defence = 0; // Number of pieces "saved" by simulated move
             Random r = new Random(); // To add variety to games
             bool killedEnemy = false; // True when a move is found that wipes out all enemy pieces
 
-            int maxX = board.board.GetUpperBound(0), maxY = board.board.GetUpperBound(1); // Bounds of the board
+			int maxX = Board.SIZE_X - 1, maxY = Board.SIZE_Y - 1; // Bounds of the board
 
             #endregion
 
             #region Offensive Moves
 
-            foreach (GamePiece gp in board.board)
+            foreach (GamePiece gp in board)
             {
-                if (gp.code == aicode)
+                if (gp.Code == aicode)
                 {
                     for (int i = 0; i < 16; i++) // i>=8 means simulated move is a jump
                     {
                         // Make sure adjacent spot is a valid position
-                        if (gp.x + positioncheck[i, 0] <= maxX && gp.x + positioncheck[i, 0] >= 0 &&
-                            gp.y + positioncheck[i, 1] <= maxY && gp.y + positioncheck[i, 1] >= 0)
+                        if (gp.x + positioncheck[i][0] <= maxX && gp.x + positioncheck[i][0] >= 0 &&
+                            gp.y + positioncheck[i][1] <= maxY && gp.y + positioncheck[i][1] >= 0)
                         {
-                            if (board[gp.x + positioncheck[i, 0], gp.y + positioncheck[i, 1]].code != 0)
+                            if (board[gp.x + positioncheck[i][0], gp.y + positioncheck[i][1]] != 0)
                                 continue;
                         }
                         else
                             continue;
                         
                         // Count the gain from each possible move
-                        gain = board.Convert(gp.x + positioncheck[i, 0], gp.y + positioncheck[i, 1], notaicode, notaicode);
+                        gain = board.Convert(gp.x + positioncheck[i][0], gp.y + positioncheck[i][1], notaicode, notaicode);
 
                         // Break from search if move that wipes out all pieces is found
                         if (gain - (i >= 8 ? 0 : 1) == naCount)
@@ -73,20 +74,20 @@ namespace Senior_Project
                             // Fill vulnerable holes
                             if (gain <= 2)
                             {
-                                defence = board.Convert(gp.x + positioncheck[i, 0], gp.y + positioncheck[i, 1], aicode, aicode);
+                                defence = board.Convert(gp.x + positioncheck[i][0], gp.y + positioncheck[i][1], aicode, aicode);
                                 if (defence >= 6)
                                 {
                                     // If spot is valuable, check if it's in range of enemy pieces
                                     for (int j = 8; j < 16; j++)
                                     {
                                         // gp.x + positioncheck(i) = checked spot, + positioncheck(j) = area around checked spot
-                                        int newspotx = gp.x + positioncheck[i, 0] + positioncheck[j, 0];
-                                        int newspoty = gp.y + positioncheck[i, 1] + positioncheck[j, 1];
+                                        int newspotx = gp.x + positioncheck[i][0] + positioncheck[j][0];
+                                        int newspoty = gp.y + positioncheck[i][1] + positioncheck[j][1];
                                         if (newspotx <= maxX && newspotx >= 0 && 
                                             newspoty <= maxY && newspoty >= 0)
                                         {
                                             // If it finds a green piece in range
-                                            if (board[newspotx, newspoty].code == notaicode)
+                                            if (board[newspotx, newspoty] == notaicode)
                                             {
                                                 // Set gain to the number of pieces saved
                                                 gain = defence;
@@ -112,13 +113,13 @@ namespace Senior_Project
                                     // If spot is valuable, check if it's in range of enemy pieces
                                     for (int j = 0; j < 16; j++)
                                     {
-                                        if (gp.x + positioncheck[j, 0] <= maxX && gp.x + positioncheck[j, 0] >= 0 &&
-                                            gp.y + positioncheck[j, 1] <= maxY && gp.y + positioncheck[j, 1] >= 0)
+                                        if (gp.x + positioncheck[j][0] <= maxX && gp.x + positioncheck[j][0] >= 0 &&
+                                            gp.y + positioncheck[j][1] <= maxY && gp.y + positioncheck[j][1] >= 0)
                                         {
                                             // If it finds a green piece in range and the simulated move does not consume it
-                                            if (board[gp.x + positioncheck[j, 0], gp.y + positioncheck[j, 1]].code == notaicode &&
-                                                !(Math.Abs(positioncheck[i, 0] - positioncheck[j, 0]) == 1 ||
-                                                  Math.Abs(positioncheck[i, 1] - positioncheck[j, 1]) == 1))
+                                            if (board[gp.x + positioncheck[j][0], gp.y + positioncheck[j][1]] == notaicode &&
+                                                !(Math.Abs(positioncheck[i][0] - positioncheck[j][0]) == 1 ||
+                                                  Math.Abs(positioncheck[i][1] - positioncheck[j][1]) == 1))
                                             {
                                                 // Penalize gain
                                                 gain -= (adjacentPlayers - 6);
@@ -152,8 +153,8 @@ namespace Senior_Project
                             greatest = gain;
                             curx = gp.x;
                             cury = gp.y;
-                            movex = gp.x + positioncheck[i, 0];
-                            movey = gp.y + positioncheck[i, 1];
+                            movex = gp.x + positioncheck[i][0];
+                            movey = gp.y + positioncheck[i][1];
 
                             if (killedEnemy)
                                 break;
@@ -176,36 +177,36 @@ namespace Senior_Project
                 greatest = 0;
 
                 // Block enemy movement instead of capturing
-                foreach (GamePiece gp in board.board)
+                foreach (GamePiece gp in board)
                 {
-                    if (gp.code == notaicode)
+                    if (gp.Code == notaicode)
                     {
                         // Check for empty spaces within jumping distance of enemy
                         for (int i = 8; i < 16; i++)
                         {
                             // Make sure checked spot is in bounds
-                            if (!(gp.x + positioncheck[i, 0] <= maxX && gp.x + positioncheck[i, 0] >= 0 &&
-                                  gp.y + positioncheck[i, 1] <= maxY && gp.y + positioncheck[i, 1] >= 0))
+                            if (!(gp.x + positioncheck[i][0] <= maxX && gp.x + positioncheck[i][0] >= 0 &&
+                                  gp.y + positioncheck[i][1] <= maxY && gp.y + positioncheck[i][1] >= 0))
                                 continue;
                             
                             // If spot is found
-                            if (board[gp.x + positioncheck[i, 0], gp.y + positioncheck[i, 1]].code == 0)
+                            if (board[gp.x + positioncheck[i][0], gp.y + positioncheck[i][1]] == 0)
                             {
                                 // Search for a piece that can block the spot
-                                int newx = gp.x + positioncheck[i, 0];
-                                int newy = gp.y + positioncheck[i, 1];
+                                int newx = gp.x + positioncheck[i][0];
+                                int newy = gp.y + positioncheck[i][1];
                                 GamePiece blocker = null;
 
                                 for (int j = 0; j < 8; j++)
                                 {
-                                    if (!(newx + positioncheck[j, 0] <= maxX && newx + positioncheck[j, 0] >= 0 &&
-                                          newy + positioncheck[j, 1] <= maxY && newy + positioncheck[j, 1] >= 0))
+                                    if (!(newx + positioncheck[j][0] <= maxX && newx + positioncheck[j][0] >= 0 &&
+                                          newy + positioncheck[j][1] <= maxY && newy + positioncheck[j][1] >= 0))
                                         continue;
                                     
                                     // Save piece if found
-                                    if (board[newx + positioncheck[j, 0], newy + positioncheck[j, 1]].code == aicode)
+                                    if (board[newx + positioncheck[j][0], newy + positioncheck[j][1]] == aicode)
                                     {
-                                        blocker = board[newx + positioncheck[j, 0], newy + positioncheck[j, 1]];
+                                        blocker = board.GetPieceAtPos(newx + positioncheck[j][0], newy + positioncheck[j][1]);
                                         break;
                                     }
                                 }
@@ -235,8 +236,8 @@ namespace Senior_Project
 
             // Execute the saved move
             if (jumped)
-                board[curx, cury].code = 0;
-            board[movex, movey].code = aicode;
+                board[curx, cury] = 0;
+            board[movex, movey] = aicode;
             board.Convert(movex, movey, aicode, notaicode);
         }
     }
