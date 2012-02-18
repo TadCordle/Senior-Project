@@ -67,7 +67,7 @@ namespace Senior_Project
             int greatest = -1;
             bool jump = false;
 
-            // Go through all possible moves of each pieve of code 'code' on the board
+            // Go through all possible moves of each piece with code 'code' on the board
             foreach (GamePiece gp in board)
             {
                 if (gp.Code == code)

@@ -534,7 +534,7 @@ namespace Senior_Project
         // Show extra forms
         private void mnuAbout_Click(object sender, EventArgs e)
         {
-            MessageBox.Show("Program by Tad Cordle\n" +
+            MessageBox.Show("Program by Tad Cordle and Nolan Lum\n" +
                             "Programmed in C# .NET", "About");
         }
         private void mnuHTP_Click(object sender, EventArgs e)
