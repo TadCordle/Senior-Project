@@ -23,7 +23,7 @@ namespace Nolan_AI
 		private Random rnd = new Random();
 
 		private Board workingBoard;
-
+		
 		#region Variables
 		int othercode;
 		#endregion

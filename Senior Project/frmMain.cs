@@ -124,7 +124,7 @@ namespace Senior_Project
 					aiMove[0].WaitOne(); // Wait for signal.
 
 					Thread.Sleep(aiSleepTime); // Sleep before doing.
-
+					
 					try
 					{
 						ai1.MakeMove();
