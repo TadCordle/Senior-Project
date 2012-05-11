@@ -8,9 +8,9 @@ namespace Senior_Project
     {
         private static readonly Image[] codes = { 
                                             null,
-                                            Image.FromFile(Application.StartupPath + @"\1.bmp"),
-                                            Image.FromFile(Application.StartupPath + @"\2.bmp"),
-                                            Image.FromFile(Application.StartupPath + @"\3.bmp")
+                                            global::Senior_Project.Properties.Resources.Piece1,
+                                            global::Senior_Project.Properties.Resources.Piece2,
+                                            global::Senior_Project.Properties.Resources.Piece3
                                          };
 
 		

@@ -90,6 +90,9 @@ namespace Senior_Project
 
             // Read in a board from the default file or create a new file if "default.txt" doesn't exist
             file = Application.StartupPath + "/boards/default.txt";
+            if (!Directory.Exists(Path.GetDirectoryName(file)))
+                Directory.CreateDirectory(Path.GetDirectoryName(file));
+
             if (!File.Exists(file))
             {
                 string dflt = "2000000001\n" +
