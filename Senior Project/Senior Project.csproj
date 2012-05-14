@@ -102,7 +102,6 @@
   <ItemGroup>
     <Compile Include="AI1.cs" />
     <Compile Include="AI2.cs" />
-    <Compile Include="AI4.cs" />
     <Compile Include="Board.cs" />
     <Compile Include="AI3.cs" />
     <Compile Include="frmAIChooser.cs">

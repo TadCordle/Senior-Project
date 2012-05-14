@@ -4,11 +4,11 @@ using System.Diagnostics;
 using System.Linq;
 using Senior_Project;
 
-namespace Nolan_AI
+namespace Senior_Project
 {
 	sealed class ICanSeeForever : AI
 	{
-		private const int SEARCH_DEPTH = 6;
+		private const int SEARCH_DEPTH = 4;
 		private static readonly int[][] positioncheck = new int[][] {
 			new[] { 0, 1 },  new[] { 1, 1 },   new[] { 1, 0 },  new[] { 1, -1 }, 
             new[] { 0, -1 }, new[] { -1, -1 }, new[] { -1, 0 }, new[] { -1, 1 }, 
@@ -23,7 +23,7 @@ namespace Nolan_AI
 		private Random rnd = new Random();
 
 		private Board workingBoard;
-		
+
 		#region Variables
 		int othercode;
 		#endregion
@@ -93,7 +93,7 @@ namespace Nolan_AI
 		//
 		// α is the minimum score that the maximizing player is assured of.
 		// β is the maximum score that the minimizing player is assured of.
-		private int _search(Tree<Move, Board>.Node node, int depth, int α, int β, bool me) 
+		private int _search(Tree<Move, Board>.Node node, int depth, int α, int β, bool me)
 		{
 			int pcode = me ? aicode : othercode, notpcode = !me ? aicode : othercode;
 			StateInfo.ValueType valType = StateInfo.ValueType.Alpha;
@@ -104,7 +104,7 @@ namespace Nolan_AI
 			// return loss, because we don't want to draw.
 			//if (this.repetitionCheck.Contains(cur))
 			//	return int.MaxValue;
-			
+
 			// If we have a cached answer for the score of the current state at a certain depth,
 			// see if we can use it.
 			if (this.transTable.ContainsKey(this.workingBoard))
@@ -177,7 +177,7 @@ namespace Nolan_AI
 
 			// Get an ordered list of moves (and hence game tree nodes) to traverse.
 			// Ideally, heuristics should be applied to find the best evaluation order, but
- 			// that is fancy stuff.
+			// that is fancy stuff.
 			var moveIter = moves.Concat(_findMoves(this.workingBoard, pcode));
 			// If we have no best move ordering, collapse the move list and order by gain.
 			//if (cachedBest == null)
@@ -203,7 +203,7 @@ namespace Nolan_AI
 				var nextNode = node;
 				if (node.HasLeaf(move))
 					nextNode = node[move];
-					//nextNode.Value = 0;
+				//nextNode.Value = 0;
 				else
 					nextNode = node.AddLeaf(move);
 				#endregion
@@ -256,18 +256,50 @@ namespace Nolan_AI
 		/// Heuristic evaluation of a board state for 'goodness'.
 		/// </summary>
 		private static int _score(Board b, int code, int othercode)
-        {
-            if (b.GameOver)
-            {
-                if (b.Count(code) > b.Count(othercode))
-                    return int.MaxValue;
-                else
-                    return -int.MaxValue;
-            }
+		{
+			// If an end game state is found, return a score to represent a win or loss
+			if (b.GameOver)
+			{
+				if (b.Count(code) > b.Count(othercode))
+					return int.MaxValue;
+				else
+					return -int.MaxValue;
+			}
 
-			return b.Count(code);
+			int piececount = 0;
+			foreach (GamePiece gp in b)
+			{
+				if (gp.Code == othercode)
+				{
+					// Subtract from score for each effective move that the enemy can make
+					for (int i = 0; i < 16; i++)
+					{
+						if (gp.x + positioncheck[i][0] < 0 || gp.x + positioncheck[i][0] >= Board.SIZE_X ||
+							gp.y + positioncheck[i][1] < 0 || gp.y + positioncheck[i][1] >= Board.SIZE_Y ||
+							b[gp.x + positioncheck[i][0], gp.y + positioncheck[i][1]] != 0)
+							continue;
+
+						int xto = gp.x + positioncheck[i][0];
+						int yto = gp.y + positioncheck[i][1];
+						for (int j = 0; j < 8; j++)
+						{
+							if (xto + positioncheck[j][0] < 0 || xto + positioncheck[j][0] >= Board.SIZE_X ||
+								yto + positioncheck[j][1] < 0 || yto + positioncheck[j][1] >= Board.SIZE_Y)
+								continue;
+							if (b[xto + positioncheck[j][0], yto + positioncheck[j][1]] == code)
+								piececount--;
+						}
+					}
+				}
+				else if (gp.Code == code)
+				{
+					piececount += 10;
+				}
+			}
+
+			return piececount;
 		}
-
+	
 		/// <summary>
 		/// Makes a list of all the moves player of code 'code' can make'.
 		/// </summary>
@@ -290,11 +322,7 @@ namespace Nolan_AI
 						if (board[xto, yto] != 0)
 							continue;
 
-						// Count conversions
-						int gain = board.Convert(xto, yto, ocode, ocode);
-						if (i < 8) gain += 1;
-
-						yield return new Move(gp.x, gp.y, xto, yto, i >= 8, gain);
+						yield return new Move(gp.x, gp.y, xto, yto, i >= 8, 0); // Conversion count is never used, so 0 is used as a placeholder
 					}
 				}
 			}
@@ -439,7 +467,7 @@ namespace Nolan_AI
 				return !(one == two);
 			}
 		}
-		
+
 		// Struct for transposition table stuff.
 		private class StateInfo
 		{
@@ -502,8 +530,9 @@ namespace Nolan_AI
 					return leaves.ContainsKey(t);
 				}
 
-				public KeyValuePair<E, Node> GetSingleMove() {
-					foreach(var x in this.leaves)
+				public KeyValuePair<E, Node> GetSingleMove()
+				{
+					foreach (var x in this.leaves)
 						return x;
 					throw new InvalidOperationException();
 				}
@@ -525,5 +554,5 @@ namespace Nolan_AI
 		}
 	}
 
-	
+
 }

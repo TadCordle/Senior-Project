@@ -30,7 +30,7 @@ namespace Senior_Project
 		AutoResetEvent aiMoveComplete = new AutoResetEvent(false);
 
 		Type ai1Type = typeof(AI1), // Default AI1 class.
-			 ai2Type = typeof(Nolan_AI.ICanSeeForever); // Default AI2 class.
+			 ai2Type = typeof(ICanSeeForever); // Default AI2 class.
 
 		public Type AI1Class
 		{
