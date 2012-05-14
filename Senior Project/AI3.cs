@@ -9,6 +9,7 @@ namespace Senior_Project
 	sealed class ICanSeeForever : AI
 	{
 		private const int SEARCH_DEPTH = 4;
+
 		private static readonly int[][] positioncheck = new int[][] {
 			new[] { 0, 1 },  new[] { 1, 1 },   new[] { 1, 0 },  new[] { 1, -1 }, 
             new[] { 0, -1 }, new[] { -1, -1 }, new[] { -1, 0 }, new[] { -1, 1 }, 
@@ -16,7 +17,7 @@ namespace Senior_Project
             new[] { 0, -2 }, new[] { -2, -2 }, new[] { -2, 0 }, new[] {-2, 2 } };
 
 		private Tree<Move, Board> gameTree = new Tree<Move, Board>();
-		private Dictionary<Board, StateInfo> transTable = new Dictionary<Board, StateInfo>();
+        private Dictionary<Board, StateInfo> transTable = new Dictionary<Board, StateInfo>(4096);
 		private HashSet<Board> repetitionCheck = new HashSet<Board>();
 		private Stack<List<BoardTransform>> undoStack = new Stack<List<BoardTransform>>();
 
@@ -58,11 +59,11 @@ namespace Senior_Project
 					return;
 
 				// If the best move is an endgame scenario, it would be best to return that straightaway.
-				else if (best == int.MaxValue || best == int.MinValue)
-				{
-					move = this.gameTree.Root.GetSingleMove();
-					break;
-				}
+                else if (best == int.MaxValue || best == int.MinValue)
+                {
+                    move = this.gameTree.Root.GetSingleMove();
+                    break;
+                }
 			}
 
 			if (move == null)
@@ -257,49 +258,54 @@ namespace Senior_Project
 		/// </summary>
 		private static int _score(Board b, int code, int othercode)
 		{
-			// If an end game state is found, return a score to represent a win or loss
-			if (b.GameOver)
-			{
-				if (b.Count(code) > b.Count(othercode))
-					return int.MaxValue;
-				else
-					return -int.MaxValue;
-			}
+            if (b.GameOver)
+            {
+                if (b.Count(code) > b.Count(othercode))
+                    return int.MaxValue;
+                else
+                    return -int.MaxValue;
+            }
 
-			int piececount = 0;
+			int perimeter = 0, pieces = 0, vulnpieces = 0;
 			foreach (GamePiece gp in b)
 			{
-				if (gp.Code == othercode)
+				if (gp.Code == code)
 				{
-					// Subtract from score for each effective move that the enemy can make
-					for (int i = 0; i < 16; i++)
+					bool vulnerable = false;
+					pieces++;
+					for (int i = 0; i < 8; i++)
 					{
-						if (gp.x + positioncheck[i][0] < 0 || gp.x + positioncheck[i][0] >= Board.SIZE_X ||
-							gp.y + positioncheck[i][1] < 0 || gp.y + positioncheck[i][1] >= Board.SIZE_Y ||
-							b[gp.x + positioncheck[i][0], gp.y + positioncheck[i][1]] != 0)
+						if (!Board.SpaceInBounds(gp.x, gp.y, positioncheck[i][0], positioncheck[i][1]))
 							continue;
-
-						int xto = gp.x + positioncheck[i][0];
-						int yto = gp.y + positioncheck[i][1];
-						for (int j = 0; j < 8; j++)
+						int spacex = gp.x + positioncheck[i][0];
+						int spacey = gp.y + positioncheck[i][1];
+						if (b[spacex, spacey] == 0)
 						{
-							if (xto + positioncheck[j][0] < 0 || xto + positioncheck[j][0] >= Board.SIZE_X ||
-								yto + positioncheck[j][1] < 0 || yto + positioncheck[j][1] >= Board.SIZE_Y)
-								continue;
-							if (b[xto + positioncheck[j][0], yto + positioncheck[j][1]] == code)
-								piececount--;
+							if (Math.Abs(spacex) != Math.Abs(spacey))
+								perimeter++;
+							if (!vulnerable)
+								for (int j = 0; j < 16; j++)
+								{
+									if (!Board.SpaceInBounds(spacex, spacey, positioncheck[j][0], positioncheck[j][1]))
+										continue;
+									int inrangex = spacex + positioncheck[j][0];
+									int inrangey = spacey + positioncheck[j][1];
+									if (b[spacex, spacey] == othercode)
+									{
+										vulnerable = true;
+										vulnpieces++;
+										break;
+									}
+								}
 						}
 					}
 				}
-				else if (gp.Code == code)
-				{
-					piececount += 10;
-				}
 			}
 
-			return piececount;
+			return 15 * pieces - 5 * vulnpieces - perimeter; // Mess around with coefficients until ai works
+
 		}
-	
+
 		/// <summary>
 		/// Makes a list of all the moves player of code 'code' can make'.
 		/// </summary>

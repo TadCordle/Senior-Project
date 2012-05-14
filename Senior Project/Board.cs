@@ -224,6 +224,11 @@ namespace Senior_Project
 						}
 				}
 		}
+		public static bool SpaceInBounds(int x1, int y1, int x2, int y2)
+		{
+			return x1 + x2 < SIZE_X && x1 + x2 >= 0 &&
+				   y1 + y2 < SIZE_Y && y1 + y2 >= 0;
+		}
 
 		public override bool Equals(object obj)
 		{

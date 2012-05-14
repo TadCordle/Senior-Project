@@ -74,8 +74,7 @@ namespace Senior_Project
                 {
                     for (int i = 0; i < 16; i++)
                     {
-						if (gp.x + positioncheck[i][0] <= maxX && gp.x + positioncheck[i][0] >= 0 &&
-							gp.y + positioncheck[i][1] <= maxY && gp.y + positioncheck[i][1] >= 0)
+						if (Board.SpaceInBounds(gp.x, gp.y, positioncheck[i][0], positioncheck[i][1]))
                         {
 							if (board[gp.x + positioncheck[i][0], gp.y + positioncheck[i][1]] != 0)
                                 continue;
@@ -123,8 +122,7 @@ namespace Senior_Project
                     // Check number of pieces adjacent to open spot if move is a jump
                     for (int i = 0; i < 16; i++)
                     {
-						if (!(m.xfrom + positioncheck[i][0] <= maxX && m.xfrom + positioncheck[i][0] >= 0 &&
-							  m.yfrom + positioncheck[i][1] <= maxX && m.yfrom + positioncheck[i][1] >= 0))
+						if (!Board.SpaceInBounds(m.xfrom, m.yfrom, positioncheck[i][0], positioncheck[i][1]))
                             continue;
 
 						if (board[m.xfrom + positioncheck[i][0], m.yfrom + positioncheck[i][1]] == othercode)

@@ -180,6 +180,10 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="blob wars.ico" />
+    <Content Include="Resources\0.bmp" />
+    <Content Include="Resources\1.bmp" />
+    <Content Include="Resources\2.bmp" />
+    <Content Include="Resources\3.bmp" />
     <Content Include="Resources\help1.bmp" />
     <Content Include="Resources\help2.bmp" />
     <Content Include="Resources\help3.bmp" />
