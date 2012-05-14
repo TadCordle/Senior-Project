@@ -8,15 +8,42 @@ namespace Nolan_AI
 {
 	sealed class ICanSeeForever : AI
 	{
-		private const int SEARCH_DEPTH = 6;
+		private const int SEARCH_DEPTH = 2;
 		private static readonly int[][] positioncheck = new int[][] {
 			new[] { 0, 1 },  new[] { 1, 1 },   new[] { 1, 0 },  new[] { 1, -1 }, 
             new[] { 0, -1 }, new[] { -1, -1 }, new[] { -1, 0 }, new[] { -1, 1 }, 
             new[] { 0, 2 },  new[] { 2, 2 },   new[] { 2, 0 },  new[] { 2, -2 }, 
             new[] { 0, -2 }, new[] { -2, -2 }, new[] { -2, 0 }, new[] {-2, 2 } };
 
+        private static readonly int[][] boardGrid = new int[][] {
+            new int[] {
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                1, 1, 1, 0, 0, 0, 0, 1, 1, 1,
+                2, 1, 1, 1, 0, 0, 1, 1, 1, 2,
+                3, 2, 2, 1, 1, 1, 1, 2, 2, 3,
+                4, 3, 2, 1, 1, 1, 1, 2, 3, 4
+            },
+            new int[] {
+                2, 2, 2, 2, 0, 0, 2, 2, 2, 2,
+                2, 2, 2, 2, 0, 0, 2, 2, 2, 2,
+                2, 2, 1, 1, 0, 0, 1, 1, 2, 2,
+                2, 2, 1, 1, 0, 0, 1, 1, 2, 2,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+            }
+        };
+
 		private Tree<Move, Board> gameTree = new Tree<Move, Board>();
-		private Dictionary<Board, StateInfo> transTable = new Dictionary<Board, StateInfo>();
+        private Dictionary<Board, StateInfo> transTable = new Dictionary<Board, StateInfo>(4096);
 		private HashSet<Board> repetitionCheck = new HashSet<Board>();
 		private Stack<List<BoardTransform>> undoStack = new Stack<List<BoardTransform>>();
 
@@ -58,11 +85,11 @@ namespace Nolan_AI
 					return;
 
 				// If the best move is an endgame scenario, it would be best to return that straightaway.
-				else if (best == int.MaxValue || best == int.MinValue)
-				{
-					move = this.gameTree.Root.GetSingleMove();
-					break;
-				}
+                else if (best == int.MaxValue || best == int.MinValue)
+                {
+                    move = this.gameTree.Root.GetSingleMove();
+                    break;
+                }
 			}
 
 			if (move == null)
@@ -265,7 +292,16 @@ namespace Nolan_AI
                     return -int.MaxValue;
             }
 
-			return b.Count(code);
+            int val = 0;
+            foreach (var p in b)
+            {
+                if (p.Code == code)
+                {
+                    val += 2 + boardGrid[code - 1][p.x * 10 + p.y];
+                }
+            }
+
+            return val;
 		}
 
 		/// <summary>
