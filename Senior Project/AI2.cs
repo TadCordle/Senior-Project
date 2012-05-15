@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace Senior_Project
 {
@@ -56,6 +57,7 @@ namespace Senior_Project
                 }
             }
 
+			Thread.Sleep(400);
             ExecuteMove(bestMove);
         }
 

@@ -258,6 +258,7 @@ namespace Senior_Project
 		/// </summary>
 		private static int _score(Board b, int code, int othercode)
 		{
+			// If b is in a game over state, return a score that represents a win or loss
             if (b.GameOver)
             {
                 if (b.Count(code) > b.Count(othercode))
@@ -266,23 +267,34 @@ namespace Senior_Project
                     return -int.MaxValue;
             }
 
+			// There are 3 major components to a good board state:
+			//	- A small perimeter (not many spaces next to friendly pieces, which indicates a good structure)
+			//	- The number of pieces within capturing range of an enemy
+			//	- The friendly piece count
 			int perimeter = 0, pieces = 0, vulnpieces = 0;
+
+			// First find all friendly pieces
 			foreach (GamePiece gp in b)
 			{
 				if (gp.Code == code)
 				{
 					bool vulnerable = false;
 					pieces++;
+
+					// Next iterate through each space adjacent to the piece
 					for (int i = 0; i < 8; i++)
 					{
 						if (!Board.SpaceInBounds(gp.x, gp.y, positioncheck[i][0], positioncheck[i][1]))
 							continue;
 						int spacex = gp.x + positioncheck[i][0];
 						int spacey = gp.y + positioncheck[i][1];
-						if (b[spacex, spacey] == 0)
+						if (b[spacex, spacey] == 0) // If an empty space is found
 						{
+							// Add to perimter sum if space is not diagonal to piece
 							if (Math.Abs(spacex) != Math.Abs(spacey))
 								perimeter++;
+
+							// If "vulnerable" flag is not activated, check whether piece is in capturing range
 							if (!vulnerable)
 								for (int j = 0; j < 16; j++)
 								{
@@ -290,6 +302,8 @@ namespace Senior_Project
 										continue;
 									int inrangex = spacex + positioncheck[j][0];
 									int inrangey = spacey + positioncheck[j][1];
+
+									// If it is, set flag to true and add to vulnerable piece count
 									if (b[spacex, spacey] == othercode)
 									{
 										vulnerable = true;
@@ -302,8 +316,8 @@ namespace Senior_Project
 				}
 			}
 
-			return 15 * pieces - 5 * vulnpieces - perimeter; // Mess around with coefficients until ai works
-
+			// Bring together the scores and apply math to generate the best representative score of the board
+			return 25 * pieces - 8 * vulnpieces - 1 * perimeter; // Mess around with coefficients until ai works
 		}
 
 		/// <summary>
