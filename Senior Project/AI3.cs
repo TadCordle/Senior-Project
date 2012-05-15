@@ -8,7 +8,7 @@ namespace Senior_Project
 {
 	sealed class ICanSeeForever : AI
 	{
-		private const int SEARCH_DEPTH = 4;
+        private const int SEARCH_DEPTH = 4;
 
 		private static readonly int[][] positioncheck = new int[][] {
 			new[] { 0, 1 },  new[] { 1, 1 },   new[] { 1, 0 },  new[] { 1, -1 }, 
@@ -24,9 +24,12 @@ namespace Senior_Project
 		private Random rnd = new Random();
 
 		private Board workingBoard;
+        private DateTime startT;
 
 #if DEBUG
         private AI3DebugForm debug;
+
+        private long nodeCnt = 0, transHits = 0, transCuts = 0, evalCalls = 0;
 #endif
 
 		#region Variables
@@ -45,6 +48,18 @@ namespace Senior_Project
 #endif
 		}
 
+        // Destructor
+#if DEBUG
+        ~ICanSeeForever()
+        {
+            if (!debug.IsDisposed)
+                if (debug.InvokeRequired)
+                    debug.Invoke(new Action(delegate() { debug.Close(); }));
+                else
+                    debug.Close();
+        }
+#endif
+
 		// Makes the AI choose and execute a move
 		public override void MakeMove()
 		{
@@ -58,10 +73,16 @@ namespace Senior_Project
 			// XXX: TODO - Make this more iterative.
 			int best = int.MinValue;
 			Move move = null;
+            startT = DateTime.Now;
 			for (int d = 1; d <= SEARCH_DEPTH; d++)
 			{
-				// Perform bounded depth-first search for the best move score.
+				// Initialize state.
                 List<Move> pv = new List<Move>();
+#if DEBUG
+                nodeCnt = 0; transHits = 0; transCuts = 0; evalCalls = 0;
+#endif
+
+                // Perform bounded depth-first search for the best move score.
 				best = -_search(this.gameTree.Root, d, -int.MaxValue, int.MaxValue, true, pv);
 
 				// WE GOT CALLED TO MAKE A MOVE BUT HAVE NO MOVES TO MAKE. WAT.
@@ -75,10 +96,17 @@ namespace Senior_Project
                     break;
                 } else if(pv.Count > 0) 
                     move = pv[0];
+
+#if DEBUG
+                _trace("[SEARCH] d={4}, n={0}, tHit={1}, tCut={5} ({6}%), e={2}, PV={3}",
+                    nodeCnt, transHits, evalCalls, pv.Aggregate("", new Func<string,Move,string>((a, b) => a + b + " ")).Trim(),
+                    d, transCuts, Math.Round((double)transCuts / nodeCnt, 2) * 100);
+#endif
 			}
 
             Debug.Assert(move != null, "No move! Endgame condition without our notification?");
 
+            _trace("[EXEC] {0}", move);
 			_executeMove(this.board, move, aicode, othercode);
 		}
 
@@ -115,7 +143,10 @@ namespace Senior_Project
 								// If this was an exact value, we can return it no matter what.
 								node.Value = val.Value;
 
-                                _trace("[TRANSTABLE] hit EXACT.");
+#if DEBUG
+                                transHits++; // Mark a transposition table hit.
+                                transCuts++;
+#endif
 
 								return val.Value;
 							case StateInfo.ValueType.Alpha:
@@ -125,7 +156,10 @@ namespace Senior_Project
 								{
 									node.Value = α;
 
-                                    _trace("[TRANSTABLE] hit ALPHA.");
+#if DEBUG
+                                    transHits++; // Mark a transposition table hit.
+                                    transCuts++;
+#endif
 
 									return α;
 								}
@@ -137,7 +171,10 @@ namespace Senior_Project
 								{
 									node.Value = β;
 
-                                    _trace("[TRANSTABLE] hit BETA.");
+#if DEBUG
+                                    transHits++; // Mark a transposition table hit.
+                                    transCuts++;
+#endif
 
 									return β;
 								}
@@ -153,9 +190,12 @@ namespace Senior_Project
 
 						if (this.workingBoard[m.xfrom, m.yfrom] == aicode && this.workingBoard[m.xto, m.yto] == 0)
 						{
-                            _trace("[TRANSTABLE] hit MOVE HINT.");
-
 							cachedBest = m;
+
+#if DEBUG
+                            transHits++; // Mark a transposition table hit.
+#endif
+
 							moves.Add(m);
 						}
 					}
@@ -169,6 +209,10 @@ namespace Senior_Project
 			{
 				// The 'goodness' of current state for our player will simply be his piece count.
 				int score = _score(this.workingBoard, pcode, notpcode);
+
+#if DEBUG
+                evalCalls++; // Track a call to the evaluation function.
+#endif
 
 				// Cache the answer, and set variables.
 				_updateOrAddHash(this.workingBoard, pcode, depth, StateInfo.ValueType.Exact, score, null);
@@ -193,12 +237,12 @@ namespace Senior_Project
 			// If we're searching moves, add the current board to the exploration hash set.
 			this.repetitionCheck.Add(this.workingBoard);
 
-			int branching = 0;
-
 			// We want to choose the maximum valued node, i.e. the one which gets us the highest score.
 			foreach (var move in moveIter)
 			{
-				branching++;
+#if DEBUG
+                nodeCnt++; // Increment explored node count.
+#endif
 
 				// Get the next node, and modify the board accordingly.
 				#region var nextNode;
@@ -459,7 +503,7 @@ namespace Senior_Project
         private void _trace(string s)
         {
 #if DEBUG
-            //debug.AddTrace(s);
+            debug.AddTrace(s);
 #endif
         }
 

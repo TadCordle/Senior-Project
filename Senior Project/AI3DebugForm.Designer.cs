@@ -44,7 +44,7 @@
                         | System.Windows.Forms.AnchorStyles.Left)));
             this.tvAITree.Location = new System.Drawing.Point(3, 4);
             this.tvAITree.Name = "tvAITree";
-            this.tvAITree.Size = new System.Drawing.Size(362, 369);
+            this.tvAITree.Size = new System.Drawing.Size(503, 369);
             this.tvAITree.TabIndex = 0;
             // 
             // picBoard
@@ -54,7 +54,7 @@
                         | System.Windows.Forms.AnchorStyles.Right)));
             this.picBoard.BackColor = System.Drawing.Color.White;
             this.picBoard.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.picBoard.Location = new System.Drawing.Point(371, 4);
+            this.picBoard.Location = new System.Drawing.Point(512, 4);
             this.picBoard.Name = "picBoard";
             this.picBoard.Size = new System.Drawing.Size(369, 369);
             this.picBoard.TabIndex = 1;
@@ -77,7 +77,7 @@
             // container.Panel2
             // 
             this.container.Panel2.Controls.Add(this.txtTrace);
-            this.container.Size = new System.Drawing.Size(745, 569);
+            this.container.Size = new System.Drawing.Size(888, 569);
             this.container.SplitterDistance = 377;
             this.container.TabIndex = 2;
             // 
@@ -92,17 +92,16 @@
             this.txtTrace.Name = "txtTrace";
             this.txtTrace.ReadOnly = true;
             this.txtTrace.ScrollBars = System.Windows.Forms.ScrollBars.Both;
-            this.txtTrace.Size = new System.Drawing.Size(737, 182);
+            this.txtTrace.Size = new System.Drawing.Size(880, 182);
             this.txtTrace.TabIndex = 0;
-            this.txtTrace.Text = ">mfw AI doesn\'t work";
             // 
-            // AIDebugForm
+            // AI3DebugForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(762, 593);
+            this.ClientSize = new System.Drawing.Size(905, 593);
             this.Controls.Add(this.container);
-            this.Name = "AIDebugForm";
+            this.Name = "AI3DebugForm";
             this.Text = "MiniMax Debugger";
             ((System.ComponentModel.ISupportInitialize)(this.picBoard)).EndInit();
             this.container.Panel1.ResumeLayout(false);
