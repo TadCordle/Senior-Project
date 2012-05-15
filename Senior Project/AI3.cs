@@ -25,6 +25,10 @@ namespace Senior_Project
 
 		private Board workingBoard;
 
+#if DEBUG
+        private AI3DebugForm debug;
+#endif
+
 		#region Variables
 		int othercode;
 		#endregion
@@ -34,12 +38,17 @@ namespace Senior_Project
 			: base(b, ct)
 		{
 			othercode = ct == 1 ? 2 : 1;
+
+#if DEBUG
+            debug = new AI3DebugForm();
+            debug.Show();
+#endif
 		}
 
 		// Makes the AI choose and execute a move
 		public override void MakeMove()
 		{
-			transTable.Clear();
+			//transTable.Clear();
 			repetitionCheck.Clear();
 
 			// Set up root of tree.
@@ -48,11 +57,12 @@ namespace Senior_Project
 
 			// XXX: TODO - Make this more iterative.
 			int best = int.MinValue;
-			KeyValuePair<Move, Tree<Move, Board>.Node>? move = null;
+			Move move = null;
 			for (int d = 1; d <= SEARCH_DEPTH; d++)
 			{
 				// Perform bounded depth-first search for the best move score.
-				best = -_search(this.gameTree.Root, d, -int.MaxValue, int.MaxValue, true);
+                List<Move> pv = new List<Move>();
+				best = -_search(this.gameTree.Root, d, -int.MaxValue, int.MaxValue, true, pv);
 
 				// WE GOT CALLED TO MAKE A MOVE BUT HAVE NO MOVES TO MAKE. WAT.
 				if (this.gameTree.Root.Count == 0)
@@ -61,31 +71,15 @@ namespace Senior_Project
 				// If the best move is an endgame scenario, it would be best to return that straightaway.
                 else if (best == int.MaxValue || best == int.MinValue)
                 {
-                    move = this.gameTree.Root.GetSingleMove();
+                    move = this.gameTree.Root.GetSingleMove().Key;
                     break;
-                }
+                } else if(pv.Count > 0) 
+                    move = pv[0];
 			}
 
-			if (move == null)
-			{
-				// Construct a LINQ to select the collection of best moves.
-				var maxQuery = from kv in this.gameTree.Root
-							   where kv.Value.Value == best
-							   select kv;
-				// Commit to array, since theoretically the number of available moves on a 10x10 board
-				// should never be exceedingly large, a linear-time search isn't horrible.
-				var maxArray = maxQuery.ToArray();
+            Debug.Assert(move != null, "No move! Endgame condition without our notification?");
 
-				// If we only have one best move, pick that one instead of having to random.
-				// Saves time, probably.
-				Debug.Assert(maxArray.Length >= 1, "No children of game tree match value. Minimax bug!");
-				if (maxArray.Length == 1)
-					move = maxArray[0];
-				else
-					move = maxArray[rnd.Next(maxArray.Length)];
-			}
-
-			_executeMove(this.board, move.Value.Key, aicode, othercode);
+			_executeMove(this.board, move, aicode, othercode);
 		}
 
 		// Performs an iterative deepening depth-first search, combining the concepts of
@@ -94,17 +88,16 @@ namespace Senior_Project
 		//
 		// α is the minimum score that the maximizing player is assured of.
 		// β is the maximum score that the minimizing player is assured of.
-		private int _search(Tree<Move, Board>.Node node, int depth, int α, int β, bool me)
+		private int _search(Tree<Move, Board>.Node node, int depth, int α, int β, bool me, List<Move> pv)
 		{
 			int pcode = me ? aicode : othercode, notpcode = !me ? aicode : othercode;
 			StateInfo.ValueType valType = StateInfo.ValueType.Alpha;
 			List<Move> moves = new List<Move>();
 			Move cachedBest = null;
 
-			// Check to see if we already explored this node currently, and if we have,
-			// return loss, because we don't want to draw.
-			//if (this.repetitionCheck.Contains(cur))
-			//	return int.MaxValue;
+			// Check to see if we already explored this node currently, return draw score.
+			if (this.repetitionCheck.Contains(this.workingBoard))
+				return 0;
 
 			// If we have a cached answer for the score of the current state at a certain depth,
 			// see if we can use it.
@@ -122,6 +115,8 @@ namespace Senior_Project
 								// If this was an exact value, we can return it no matter what.
 								node.Value = val.Value;
 
+                                _trace("[TRANSTABLE] hit EXACT.");
+
 								return val.Value;
 							case StateInfo.ValueType.Alpha:
 								// Since alpha was stored, the value of the node was AT MOST this value.
@@ -129,6 +124,8 @@ namespace Senior_Project
 								if (val.Value <= α)
 								{
 									node.Value = α;
+
+                                    _trace("[TRANSTABLE] hit ALPHA.");
 
 									return α;
 								}
@@ -139,6 +136,8 @@ namespace Senior_Project
 								if (val.Value >= β)
 								{
 									node.Value = β;
+
+                                    _trace("[TRANSTABLE] hit BETA.");
 
 									return β;
 								}
@@ -154,6 +153,8 @@ namespace Senior_Project
 
 						if (this.workingBoard[m.xfrom, m.yfrom] == aicode && this.workingBoard[m.xto, m.yto] == 0)
 						{
+                            _trace("[TRANSTABLE] hit MOVE HINT.");
+
 							cachedBest = m;
 							moves.Add(m);
 						}
@@ -213,7 +214,8 @@ namespace Senior_Project
 
 				// Get the score of the child. Since we must account for perspective switches,
 				// We negate the value and reverse/negate alpha and beta.
-				var moveVal = -_search(nextNode, depth - 1, -β, -α, !me);
+                var pv2 = new List<Move>();
+				var moveVal = -_search(nextNode, depth - 1, -β, -α, !me, pv2);
 
 				// We searched, nothing exploded, undo the move.
 				_undoLastMove();
@@ -236,6 +238,11 @@ namespace Senior_Project
 						this.repetitionCheck.Remove(this.workingBoard);
 						return β;
 					}
+
+                    // Found a new best move, update the principal variation.
+                    pv.Clear();
+                    pv.Add(move);
+                    pv.AddRange(pv2);
 
 					valType = StateInfo.ValueType.Exact;
 					cachedBest = move;
@@ -342,7 +349,12 @@ namespace Senior_Project
 						if (board[xto, yto] != 0)
 							continue;
 
-						yield return new Move(gp.x, gp.y, xto, yto, i >= 8, 0); // Conversion count is never used, so 0 is used as a placeholder
+                        // Count conversions
+                        int gain = board.Convert(xto, yto, ocode, ocode);
+                        if (i < 8) gain += 1;
+
+                        yield return new Move(gp.x, gp.y, xto, yto, i >= 8, gain);
+						//yield return new Move(gp.x, gp.y, xto, yto, i >= 8, 0); // Conversion count is never used, so 0 is used as a placeholder
 					}
 				}
 			}
@@ -439,8 +451,20 @@ namespace Senior_Project
 				entry.Best = best;
 		}
 
+        private void _trace(string s, params object[] a) {
+#if DEBUG
+            _trace(string.Format(s, a));
+#endif
+        }
+        private void _trace(string s)
+        {
+#if DEBUG
+            //debug.AddTrace(s);
+#endif
+        }
+
 		// Class representing a move
-		private class Move
+		public class Move
 		{
 			public int xfrom, yfrom, xto, yto, gain;
 			public bool isjump;
@@ -516,7 +540,7 @@ namespace Senior_Project
 		// Game tree.
 		// E = edge type (move)
 		// S = State type (board)
-		private sealed class Tree<E, S>
+		public sealed class Tree<E, S>
 		{
 			public Node Root { get; set; }
 

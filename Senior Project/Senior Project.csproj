@@ -96,12 +96,20 @@
     <Reference Include="System.Core">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
+    <Reference Include="System.Data" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AI1.cs" />
     <Compile Include="AI2.cs" />
+    <Compile Include="AI3DebugForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="AI3DebugForm.Designer.cs">
+      <DependentUpon>AI3DebugForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Board.cs" />
     <Compile Include="AI3.cs" />
     <Compile Include="frmAIChooser.cs">
@@ -138,6 +146,9 @@
     <Compile Include="AI.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <EmbeddedResource Include="AI3DebugForm.resx">
+      <DependentUpon>AI3DebugForm.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="frmAIChooser.resx">
       <DependentUpon>frmAIChooser.cs</DependentUpon>
     </EmbeddedResource>
