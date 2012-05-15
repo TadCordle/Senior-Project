@@ -324,7 +324,7 @@ namespace Senior_Project
 			}
 
 			// Bring together the scores and apply math to generate the best representative score of the board
-			return 25 * pieces - 8 * vulnpieces - 1 * perimeter; // Mess around with coefficients until ai works
+			return 25 * pieces - 8 * vulnpieces - 2 * perimeter; // Mess around with coefficients until ai works
 		}
 
 		/// <summary>

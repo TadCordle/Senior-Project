@@ -44,9 +44,12 @@
 			this.menuStrip = new System.Windows.Forms.MenuStrip();
 			this.mnuGame = new System.Windows.Forms.ToolStripMenuItem();
 			this.mnuNewGame = new System.Windows.Forms.ToolStripMenuItem();
+			this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
+			this.mnuChooseAI = new System.Windows.Forms.ToolStripMenuItem();
 			this.toolStripMenuItem2 = new System.Windows.Forms.ToolStripSeparator();
-			this.mnuLoad = new System.Windows.Forms.ToolStripMenuItem();
 			this.mnuCreate = new System.Windows.Forms.ToolStripMenuItem();
+			this.mnuLoad = new System.Windows.Forms.ToolStripMenuItem();
+			this.mnuSave = new System.Windows.Forms.ToolStripMenuItem();
 			this.toolStripMenuItem1 = new System.Windows.Forms.ToolStripSeparator();
 			this.mnuExit = new System.Windows.Forms.ToolStripMenuItem();
 			this.mnuHelp = new System.Windows.Forms.ToolStripMenuItem();
@@ -57,8 +60,7 @@
 			this.loffleToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 			this.feefToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 			this.cbGrid = new System.Windows.Forms.CheckBox();
-			this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
-			this.mnuChooseAI = new System.Windows.Forms.ToolStripMenuItem();
+			this.sfd = new System.Windows.Forms.SaveFileDialog();
 			this.menuStrip.SuspendLayout();
 			((System.ComponentModel.ISupportInitialize)(this.picBoard)).BeginInit();
 			this.SuspendLayout();
@@ -153,8 +155,9 @@
             this.toolStripSeparator1,
             this.mnuChooseAI,
             this.toolStripMenuItem2,
-            this.mnuLoad,
             this.mnuCreate,
+            this.mnuLoad,
+            this.mnuSave,
             this.toolStripMenuItem1,
             this.mnuExit});
 			this.mnuGame.Name = "mnuGame";
@@ -169,10 +172,30 @@
 			this.mnuNewGame.Text = "&New Game";
 			this.mnuNewGame.Click += new System.EventHandler(this.mnuNewGame_Click);
 			// 
+			// toolStripSeparator1
+			// 
+			this.toolStripSeparator1.Name = "toolStripSeparator1";
+			this.toolStripSeparator1.Size = new System.Drawing.Size(181, 6);
+			// 
+			// mnuChooseAI
+			// 
+			this.mnuChooseAI.Name = "mnuChooseAI";
+			this.mnuChooseAI.Size = new System.Drawing.Size(184, 22);
+			this.mnuChooseAI.Text = "Choose &AI";
+			this.mnuChooseAI.Click += new System.EventHandler(this.mnuChooseAI_Click);
+			// 
 			// toolStripMenuItem2
 			// 
 			this.toolStripMenuItem2.Name = "toolStripMenuItem2";
 			this.toolStripMenuItem2.Size = new System.Drawing.Size(181, 6);
+			// 
+			// mnuCreate
+			// 
+			this.mnuCreate.Name = "mnuCreate";
+			this.mnuCreate.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.C)));
+			this.mnuCreate.Size = new System.Drawing.Size(184, 22);
+			this.mnuCreate.Text = "&Create Board";
+			this.mnuCreate.Click += new System.EventHandler(this.mnuCreate_Click);
 			// 
 			// mnuLoad
 			// 
@@ -182,13 +205,13 @@
 			this.mnuLoad.Text = "&Open Board";
 			this.mnuLoad.Click += new System.EventHandler(this.mnuLoad_Click);
 			// 
-			// mnuCreate
+			// mnuSave
 			// 
-			this.mnuCreate.Name = "mnuCreate";
-			this.mnuCreate.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.C)));
-			this.mnuCreate.Size = new System.Drawing.Size(184, 22);
-			this.mnuCreate.Text = "&Create Board";
-			this.mnuCreate.Click += new System.EventHandler(this.mnuCreate_Click);
+			this.mnuSave.Name = "mnuSave";
+			this.mnuSave.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.S)));
+			this.mnuSave.Size = new System.Drawing.Size(184, 22);
+			this.mnuSave.Text = "&Save Board";
+			this.mnuSave.Click += new System.EventHandler(this.mnuSave_Click);
 			// 
 			// toolStripMenuItem1
 			// 
@@ -258,18 +281,6 @@
 			this.cbGrid.UseVisualStyleBackColor = true;
 			this.cbGrid.CheckedChanged += new System.EventHandler(this.cbGrid_CheckedChanged);
 			// 
-			// toolStripSeparator1
-			// 
-			this.toolStripSeparator1.Name = "toolStripSeparator1";
-			this.toolStripSeparator1.Size = new System.Drawing.Size(181, 6);
-			// 
-			// mnuChooseAI
-			// 
-			this.mnuChooseAI.Name = "mnuChooseAI";
-			this.mnuChooseAI.Size = new System.Drawing.Size(184, 22);
-			this.mnuChooseAI.Text = "Choose &AI";
-			this.mnuChooseAI.Click += new System.EventHandler(this.mnuChooseAI_Click);
-			// 
 			// frmMain
 			// 
 			this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -329,6 +340,8 @@
         private System.Windows.Forms.CheckBox cbGrid;
 		private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
 		private System.Windows.Forms.ToolStripMenuItem mnuChooseAI;
+		private System.Windows.Forms.ToolStripMenuItem mnuSave;
+		private System.Windows.Forms.SaveFileDialog sfd;
 
     }
 }
