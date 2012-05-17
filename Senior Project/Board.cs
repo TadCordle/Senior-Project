@@ -6,13 +6,15 @@ using System.Windows.Forms;
 
 namespace Senior_Project
 {
-	public sealed class Board : IEnumerable<GamePiece>, ICloneable
+	public sealed class Board : IEnumerable<GamePiece>
 	{
 		private static readonly long[][] hashkey = new long[SIZE_X * SIZE_Y][];
 		public const int SIZE_X = 10, SIZE_Y = 10;
 
 		private GamePiece[][] board;
 		private long boardHash;
+
+        private int[] counts = new int[4] { 100, 0, 0, 0 };
 
 		public long LongHashCode { get { return boardHash; } }
 
@@ -80,6 +82,18 @@ namespace Senior_Project
 			}
 
 			boardHash = this.GetLongHashCode();
+		}
+        public Board(Board b)
+        {
+            board = new GamePiece[SIZE_X][];
+            for (int r = 0; r < SIZE_Y; r++)
+            {
+                board[i] = new GamePiece[SIZE_Y];
+                for (int c = 0; c < SIZE_X; c++)
+                    board[r][c] = new GamePiece(r, c, b.board[r][c].Code);
+            }
+
+			this.boardHash = b.boardHash;
 		}
 
 		public int this[int posr, int posc]
@@ -309,21 +323,6 @@ namespace Senior_Project
 		{
 			return GetEnumerator();
 		}
-		#endregion
-
-		#region ICloneable Members
-
-		public object Clone()
-		{
-			Board b = new Board();
-			for (int r = 0; r < SIZE_Y; r++)
-				for (int c = 0; c < SIZE_X; c++)
-					b.board[r][c].Code = this.board[r][c].Code;
-
-			b.boardHash = this.boardHash;
-			return b;
-		}
-
 		#endregion
 	}
 }

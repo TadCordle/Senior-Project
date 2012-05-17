@@ -30,6 +30,7 @@ namespace Senior_Project
         private AI3DebugForm debug;
 
         private long nodeCnt = 0, transHits = 0, transCuts = 0, evalCalls = 0;
+        private DateTime depthStart;
 #endif
 
 		#region Variables
@@ -80,6 +81,7 @@ namespace Senior_Project
                 List<Move> pv = new List<Move>();
 #if DEBUG
                 nodeCnt = 0; transHits = 0; transCuts = 0; evalCalls = 0;
+                depthStart = DateTime.Now;
 #endif
 
                 // Perform bounded depth-first search for the best move score.
@@ -98,9 +100,10 @@ namespace Senior_Project
                     move = pv[0];
 
 #if DEBUG
-                _trace("[SEARCH] d={4}, n={0}, tHit={1}, tCut={5} ({6}%), e={2}, PV={3}",
+                _trace("[SEARCH] d={4}, n={0}, tHit={1}, tCut={5} ({6}%), e={2}\n      t={7}s ({8} n/s), PV={3}",
                     nodeCnt, transHits, evalCalls, pv.Aggregate("", new Func<string,Move,string>((a, b) => a + b + " ")).Trim(),
-                    d, transCuts, Math.Round((double)transCuts / nodeCnt, 2) * 100);
+                    d, transCuts, Math.Round((double) transCuts / nodeCnt, 2) * 100, Math.Round((DateTime.Now - depthStart).TotalMilliseconds / 1000, 3),
+                    Math.Round(nodeCnt / (DateTime.Now - depthStart).TotalMilliseconds / 1000, 0));
 #endif
 			}
 
