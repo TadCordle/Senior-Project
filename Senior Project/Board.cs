@@ -9,12 +9,12 @@ namespace Senior_Project
 	public sealed class Board : IEnumerable<GamePiece>
 	{
 		private static readonly long[][] hashkey = new long[SIZE_X * SIZE_Y][];
-		public const int SIZE_X = 10, SIZE_Y = 10;
+		public const int SIZE_X = 8, SIZE_Y = 8;
 
 		private GamePiece[][] board;
 		private long boardHash;
 
-        private int[] counts = new int[4] { 100, 0, 0, 0 };
+        private int[] counts = new int[4] { 64, 0, 0, 0 };
 
 		public long LongHashCode { get { return boardHash; } }
 

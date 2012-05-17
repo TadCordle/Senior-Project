@@ -252,9 +252,9 @@
 			// picBoard
 			// 
 			this.picBoard.BackColor = System.Drawing.Color.White;
-			this.picBoard.Location = new System.Drawing.Point(12, 27);
+			this.picBoard.Location = new System.Drawing.Point(60, 84);
 			this.picBoard.Name = "picBoard";
-			this.picBoard.Size = new System.Drawing.Size(480, 480);
+			this.picBoard.Size = new System.Drawing.Size(384, 384);
 			this.picBoard.TabIndex = 0;
 			this.picBoard.TabStop = false;
 			this.picBoard.Paint += new System.Windows.Forms.PaintEventHandler(this.picBoard_Paint);
