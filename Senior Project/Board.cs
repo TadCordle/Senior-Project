@@ -61,8 +61,15 @@ namespace Senior_Project
 				for (int i = 0; i < SIZE_X; i++)
 				{
 					string line = load.ReadLine();
-					for (int j = 0; j < SIZE_Y; j++)
-						board[i][j] = new GamePiece(i, j, int.Parse(line[j].ToString()));
+                    for (int j = 0; j < SIZE_Y; j++)
+                    {
+                        int code = int.Parse(line[j].ToString());
+
+                        counts[code]++;
+                        counts[0]--;
+
+                        board[i][j] = new GamePiece(i, j, code);
+                    }
 				}
 			}
 			finally
@@ -88,10 +95,13 @@ namespace Senior_Project
             board = new GamePiece[SIZE_X][];
             for (int r = 0; r < SIZE_Y; r++)
             {
-                board[i] = new GamePiece[SIZE_Y];
+                board[r] = new GamePiece[SIZE_Y];
                 for (int c = 0; c < SIZE_X; c++)
                     board[r][c] = new GamePiece(r, c, b.board[r][c].Code);
             }
+
+            for (int i = 0; i < 4; i++)
+                counts[i] = b.counts[i];
 
 			this.boardHash = b.boardHash;
 		}
@@ -103,6 +113,10 @@ namespace Senior_Project
 				// Unset old code, set new code.
 				this.boardHash ^= hashkey[posr * Board.SIZE_Y + posc][board[posr][posc].Code];
 				this.boardHash ^= hashkey[posr * Board.SIZE_Y + posc][value];
+
+                // Update piece counts.
+                counts[board[posr][posc].Code]--;
+                counts[value]++;
 
 				board[posr][posc].Code = value;
 			}
@@ -155,10 +169,7 @@ namespace Senior_Project
 						if (xi < SIZE_X && xi >= 0 && yj < SIZE_Y && yj >= 0)
 							if (board[xi][yj].Code == c2)
 							{
-								this.boardHash ^= hashkey[xi * Board.SIZE_Y + yj][c2];
-								this.boardHash ^= hashkey[xi * Board.SIZE_Y + yj][c1];
-
-								board[x + i][y + j].Code = c1;
+                                this[xi, yj] = c1;
 								count++;
 							}
 			}
@@ -169,11 +180,7 @@ namespace Senior_Project
 		// Return a count of all pieces on the board with code c
 		public int Count(int c)
 		{
-			int count = 0;
-			foreach (GamePiece gp in this)
-				if (gp.Code == c)
-					count++;
-			return count;
+            return counts[c];
 		}
 
 		// Checks if there are any pieces with code c that can move

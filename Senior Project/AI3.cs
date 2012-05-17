@@ -69,7 +69,7 @@ namespace Senior_Project
 
 			// Set up root of tree.
 			this.gameTree.Root = new Tree<Move, Board>.Node();
-			this.workingBoard = board.Clone() as Board;
+            this.workingBoard = new Board(board);
 
 			// XXX: TODO - Make this more iterative.
 			int best = int.MinValue;
@@ -91,19 +91,14 @@ namespace Senior_Project
 				if (this.gameTree.Root.Count == 0)
 					return;
 
-				// If the best move is an endgame scenario, it would be best to return that straightaway.
-                else if (best == int.MaxValue || best == int.MinValue)
-                {
-                    move = this.gameTree.Root.GetSingleMove().Key;
-                    break;
-                } else if(pv.Count > 0) 
+                if(pv.Count > 0) 
                     move = pv[0];
-
 #if DEBUG
-                _trace("[SEARCH] d={4}, n={0}, tHit={1}, tCut={5} ({6}%), e={2}\n      t={7}s ({8} n/s), PV={3}",
-                    nodeCnt, transHits, evalCalls, pv.Aggregate("", new Func<string,Move,string>((a, b) => a + b + " ")).Trim(),
-                    d, transCuts, Math.Round((double) transCuts / nodeCnt, 2) * 100, Math.Round((DateTime.Now - depthStart).TotalMilliseconds / 1000, 3),
-                    Math.Round(nodeCnt / (DateTime.Now - depthStart).TotalMilliseconds / 1000, 0));
+                _trace("[SEARCH] d={0}, n={1}, tHit={2}, tCut={3} ({4}%), e={5}", d, nodeCnt, transHits, transCuts,
+                    Math.Round((double) transCuts / nodeCnt, 2) * 100, evalCalls);
+                _trace("         t={0}s ({1} n/s), PV={2}", Math.Round((DateTime.Now - depthStart).TotalMilliseconds / 1000, 3),
+                    Math.Round(nodeCnt / ((DateTime.Now - depthStart).TotalMilliseconds / 1000), 0),
+                    pv.Aggregate("", new Func<string,Move,string>((a, b) => a + b + " ")).Trim());
 #endif
 			}
 
@@ -316,9 +311,9 @@ namespace Senior_Project
             if (b.GameOver)
             {
                 if (b.Count(code) > b.Count(othercode))
-                    return int.MaxValue;
+                    return int.MaxValue - 10;
                 else
-                    return -int.MaxValue;
+                    return -(int.MaxValue - 10);
             }
 
 			// There are 3 major components to a good board state:
