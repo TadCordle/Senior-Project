@@ -8,6 +8,8 @@ namespace Senior_Project
         [STAThread]
         static void Main()
         {
+			new ICanSeeForever.AIBoard(new Board());
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new frmMain());

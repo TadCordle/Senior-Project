@@ -649,7 +649,7 @@ namespace Senior_Project
 		//     n n n n n n n n 5 = y
 		//     n n n n n n n n 6 = y
 		//     n n n n n n n n 7 = y
-		private sealed class AIBoard
+		public sealed class AIBoard
 		{
 			private static ulong[][] hashkey = new ulong[64][];
 			private static ulong[] convMasks = new ulong[64]; // Bit masks for piece conversions.
@@ -690,9 +690,14 @@ namespace Senior_Project
 						int idx = y * 8 + x;
 
 						convMasks[idx] =
-							(x > 0 ? 1UL << idx - 8 : 0) | (1UL << idx - 7) | (x < 7 ? 1UL << idx - 6 : 0) |
-							(x > 0 ? 1UL << idx + 0 : 0) /*              */ | (x < 7 ? 1UL << idx + 2 : 0) |
-							(x > 0 ? 1UL << idx + 8 : 0) | (1UL << idx + 9) | (x < 7 ? 1UL << idx + 10 : 0);
+							(x > 0 ? 1UL.LS(idx - 8) : 0) |
+							/*   */ (1UL.LS(idx - 7)) |
+							(x < 7 ? 1UL.LS(idx - 6) : 0) |
+							(x > 0 ? 1UL.LS(idx + 0) : 0) |
+							(x < 7 ? 1UL.LS(idx + 2) : 0) |
+							(x > 0 ? 1UL.LS(idx + 8) : 0) |
+							/*   */ (1UL.LS(idx + 9)) |
+							(x < 7 ? 1UL.LS(idx + 10) : 0);
 					}
 
 				// A piece can possibly move in a pattern looking like this:
@@ -710,11 +715,11 @@ namespace Senior_Project
 						int idx = y * 8 + x;
 
 						moveMasks[idx] =
-							(x > 1 ? 1UL << idx - 26 : 0) | (1UL << idx - 24) | (x < 6 ? 1UL << idx - 22 : 0) |
-							(x > 0 ? 1UL << idx - 17 : 0) | (1UL << idx - 16) | (x < 7 ? 1UL << idx - 15 : 0) |
-							(x > 0 ? 1UL << idx - 01 : 0) /*               */ | (x < 7 ? 1UL << idx + 01 : 0) |
-							(x > 0 ? 1UL << idx + 07 : 0) | (1UL << idx + 08) | (x < 7 ? 1UL << idx + 09 : 0) |
-							(x > 1 ? 1UL << idx + 14 : 0) | (1UL << idx + 16) | (x < 6 ? 1UL << idx + 18 : 0);
+							(x > 1 ? 1UL.LS(idx - 26) : 0) | (1UL.LS(idx - 24)) | (x < 6 ? 1UL.LS(idx - 22) : 0) |
+							(x > 0 ? 1UL.LS(idx - 17) : 0) | (1UL.LS(idx - 16)) | (x < 7 ? 1UL.LS(idx - 15) : 0) |
+							(x > 0 ? 1UL.LS(idx - 01) : 0) /*                */ | (x < 7 ? 1UL.LS(idx + 01) : 0) |
+							(x > 0 ? 1UL.LS(idx + 07) : 0) | (1UL.LS(idx + 08)) | (x < 7 ? 1UL.LS(idx + 09) : 0) |
+							(x > 1 ? 1UL.LS(idx + 14) : 0) | (1UL.LS(idx + 16)) | (x < 6 ? 1UL.LS(idx + 18) : 0);
 					}
 			}
 
@@ -853,6 +858,20 @@ namespace Senior_Project
 			i = i - ((i >> 1) & 0x5555555555555555UL);
 			i = (i & 0x3333333333333333UL) + ((i >> 2) & 0x3333333333333333UL);
 			return (int) (unchecked(((i + (i >> 4)) & 0xF0F0F0F0F0F0F0FUL) * 0x101010101010101UL) >> 56);
+		}
+
+		// Corrects for the behavior of left-shift and negative values, as well as shifting modulo.
+		public static ulong LS(this ulong l, int i)
+		{
+			if (i < -63 || i > 63)
+				return 0;
+
+			return i > 0 ? l << i : l >> -i;
+		}
+
+		public static int ChompToZero(this int i)
+		{
+			return i < 0 ? 0 : i;
 		}
 	}
 }
