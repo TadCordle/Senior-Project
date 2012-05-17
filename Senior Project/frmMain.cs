@@ -29,7 +29,7 @@ namespace Senior_Project
 		AutoResetEvent[] aiMove; // Signalling mechanism for AI processing.
 		AutoResetEvent aiMoveComplete = new AutoResetEvent(false);
 
-		Type ai1Type = typeof(AI1), // Default AI1 class.
+		Type ai1Type = typeof(AI2), // Default AI1 class.
 			 ai2Type = typeof(ICanSeeForever); // Default AI2 class.
 
 		public Type AI1Class
@@ -582,6 +582,30 @@ namespace Senior_Project
 						this.ai1Type = aier.AI1Type;
 					if (aier.AI2Type != this.ai2Type)
 						this.ai2Type = aier.AI2Type;
+				}
+			}
+		}
+
+		// Save current board state
+		private void mnuSave_Click(object sender, EventArgs e)
+		{
+			DialogResult show = sfd.ShowDialog();
+			if (show == DialogResult.OK)
+			{
+				string file = sfd.FileName;
+				if (string.IsNullOrEmpty(file))
+					return;
+				using (StreamWriter writer = new StreamWriter(file))
+				{
+					for (int x = 0; x < Board.SIZE_X; x++)
+					{
+						for (int y = 0; y < Board.SIZE_Y; y++)
+							writer.Write(board[x, y].ToString());
+						writer.WriteLine();
+					}
+
+					writer.Flush();
+					writer.Dispose();
 				}
 			}
 		}
