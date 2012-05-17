@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using Senior_Project;
 
 namespace Senior_Project
 {
@@ -638,7 +637,222 @@ namespace Senior_Project
 				}
 			}
 		}
+
+		// AI board class optimized for an 8x8 board.
+		// Boards are organized as follows:
+		// x = 0 1 2 3 4 5 6 7 
+		//     n n n n n n n n 0 = y
+		//     n n n n n n n n 1 = y
+		//     n n n n n n n n 2 = y
+		//     n n n n n n n n 3 = y
+		//     n n n n n n n n 4 = y
+		//     n n n n n n n n 5 = y
+		//     n n n n n n n n 6 = y
+		//     n n n n n n n n 7 = y
+		private sealed class AIBoard
+		{
+			private static ulong[][] hashkey = new ulong[64][];
+			private static ulong[] convMasks = new ulong[64]; // Bit masks for piece conversions.
+			private static ulong[] moveMasks = new ulong[64]; // Bit masks for possible move positions.
+
+			// When the board[] array is projected as a single 4-bit number, this converts
+			// each bit to its corresponding code. 0001 = 1 => code 0, 0010 = 2 => code 1,
+			// 0100 = 4 => code 2, 1000 = 8 => code 3.
+			private static int[] bitboardToCode = new int[] { -999, 0, 1, -999, 2, -999, -999, -999, 3 };
+
+			private ulong[] board = new ulong[4];
+			private ulong boardHash = 0UL;
+
+			// Initializes some important values.
+			static AIBoard()
+			{
+				// Initialize hashing values.
+				Random r = new Random();
+				for (int i = 0; i < 64; i++)
+				{
+					hashkey[i] = new ulong[4];
+
+					for (int x = 0; x < 4; x++)
+						hashkey[i][x] = (ulong) r.Next() ^ ((ulong) r.Next() << 15) ^ ((ulong) r.Next() << 30) ^
+							((ulong) r.Next() << 45) ^ ((ulong) r.Next() << 60);
+				}
+
+				// A piece converts in a pattern looking like this:
+				// X X X
+				// X P X
+				// X X X
+				// The appropriate bits to be set are, therefore, bit 1, 2, 3, (8 + 1), (8 + 3), (16 + 1), (16 + 2), (16 + 3).
+				// Relative to its index (9) or (1, 1), the bits are (9 - 8), (9 - 7), (9 - 6), 9, (9 + 2), (9 + 8), (9 + 9), (9 + 10).
+				// Dynamically generating these masks is trivial. Some care must be taken for the left and right cols, since those potentially can "wrap" around to the opposite side.
+				for(int y = 0; y < 8; y++)
+					for (int x = 0; x < 8; x++)
+					{
+						int idx = y * 8 + x;
+
+						convMasks[idx] =
+							(x > 0 ? 1UL << idx - 8 : 0) | (1UL << idx - 7) | (x < 7 ? 1UL << idx - 6 : 0) |
+							(x > 0 ? 1UL << idx + 0 : 0) /*              */ | (x < 7 ? 1UL << idx + 2 : 0) |
+							(x > 0 ? 1UL << idx + 8 : 0) | (1UL << idx + 9) | (x < 7 ? 1UL << idx + 10 : 0);
+					}
+
+				// A piece can possibly move in a pattern looking like this:
+				// X - X - X
+				// - X X X -
+				// - X P X -
+				// - X X X -
+				// X - X - X
+				// The bits, relative to its index (27) or (3, 3), are (27 - 26), (27 - 24), (27 - 22), (27 - 17), (27 - 16), (27 - 15),
+				// (27 - 1), (27 + 1), (27 + 7), (27 + 8), (27 + 9), (27 + 14), (27 + 16), (27 + 18).
+				// Again, care must be taken to exclude any left/right cols that aren't applicable.
+				for(int y = 0; y < 8; y++)
+					for (int x = 0; x < 8; x++)
+					{
+						int idx = y * 8 + x;
+
+						moveMasks[idx] =
+							(x > 1 ? 1UL << idx - 26 : 0) | (1UL << idx - 24) | (x < 6 ? 1UL << idx - 22 : 0) |
+							(x > 0 ? 1UL << idx - 17 : 0) | (1UL << idx - 16) | (x < 7 ? 1UL << idx - 15 : 0) |
+							(x > 0 ? 1UL << idx - 01 : 0) /*               */ | (x < 7 ? 1UL << idx + 01 : 0) |
+							(x > 0 ? 1UL << idx + 07 : 0) | (1UL << idx + 08) | (x < 7 ? 1UL << idx + 09 : 0) |
+							(x > 1 ? 1UL << idx + 14 : 0) | (1UL << idx + 16) | (x < 6 ? 1UL << idx + 18 : 0);
+					}
+			}
+
+			public AIBoard(Board b)
+			{
+				foreach (var p in b)
+					this.board[p.Code] |= 1UL << (p.y * 8 + p.x);
+
+				this.boardHash = GetLongHashCode();
+			}
+
+			// Do magic to transform a human-readable x-y pair to the bit-array backed thingy.
+			public int this[int x, int y]
+			{
+				get {
+					// Projects each ulong as a 4-bit number, with the LSB corresponding to code = 0, and 
+					// MSB corresponding to code = 3, then collapsing that into a code using the array.
+					return bitboardToCode[board[0] | board[1] << 1 | board[2] << 2 | board[3] << 3];
+				}
+				set
+				{
+					int seqVal = y * 8 + x; // Calculate 0-63 indexing.
+					int oldCode = this[x, y]; // Calculate the old code.
+					ulong bitmask = 1UL << seqVal; // Find the bit position that represents the space.
+
+					// Unset old code, set new code.
+					this.boardHash ^= hashkey[seqVal][oldCode];
+					this.boardHash ^= hashkey[seqVal][value];
+
+					// Flip bits.
+					board[oldCode] ^= bitmask;
+					board[value] ^= bitmask;
+				}
+			}
+
+			// Given the opponent's code, calculate the potential gain if a friendly piece were to move to (x, y).
+			public int Gain(int x, int y, int othercode)
+			{
+				return (board[othercode] & convMasks[y * 8 + x]).PopCount();
+			}
+
+			// Change all spaces adjacent to space (x, y) with code codefrom to code codeto
+			// The original convert function accounted for only .63% of all exectution time, and is
+			// therefore efficient enough for our needs.
+			public int Convert(int x, int y, int codeto, int codefrom)
+			{
+				int count = 0;
+
+				for (int i = -1, xi = x + i; i <= 1; i++, xi = x + i)
+					for (int j = -1, yj = y + j; j <= 1; j++, yj = j + y)
+						if (xi < 8 && xi >= 0 && yj < 8 && yj >= 0)
+							if (this[xi, yj] == codefrom)
+							//if ((board[codefrom] & (1UL << (yj * 8 + xi))) != 0) // "optimized?" version
+							{
+								this[xi, yj] = codeto;
+								count++;
+							}
+
+				return count;
+			}
+
+			// Return a count of all pieces on the board with code c
+			public int Count(int c)
+			{
+				return board[c].PopCount();
+			}
+
+			// Checks if there are any pieces with code c that can move
+			public bool HasMovesLeft(int c)
+			{
+				ulong mask = 1UL;
+
+				for (int idx = 0; idx < 64; idx++, mask <<= 1)
+				{
+					// We need a piece of c at idx, as well as there to be a free spot somewhere that piece can move.
+					if ((board[c] & mask) != 0 && ((board[0] & moveMasks[idx]) != 0))
+						return true;
+				}
+
+				return false;
+			}
+
+			public override bool Equals(object obj)
+			{
+				if (object.ReferenceEquals(null, obj))
+					return false;
+				if (object.ReferenceEquals(this, obj))
+					return true;
+				if (!(obj is AIBoard))
+					return false;
+
+				var b2 = obj as AIBoard;
+
+				if (b2.boardHash != this.boardHash)
+					return false;
+
+				for (int i = 0; i < 4; i++)
+					if (b2.board[i] != this.board[i])
+						return false;
+
+				return true;
+			}
+			public override int GetHashCode()
+			{
+				return (int) boardHash ^ (int) (boardHash >> 32);
+			}
+			public override string ToString()
+			{
+				var sb = new System.Text.StringBuilder();
+				for (int c = 0; c < 8; c++)
+				{
+					for (int r = 0; r < 8; r++)
+						sb.Append(this[r, c]);
+					sb.AppendLine();
+				}
+				return sb.ToString();
+			}
+			public ulong GetLongHashCode()
+			{
+				ulong code = 0L;
+
+				for (int x = 0; x < 8; x++)
+					for (int y = 0; y < 8; y++)
+						code ^= AIBoard.hashkey[y * 8 + x][this[x, y]];
+
+				return code;
+			}
+		}
 	}
 
-
+	static class Extensions
+	{
+		// See wikipedia "Hamming Weight"
+		public static int PopCount(this ulong i)
+		{
+			i = i - ((i >> 1) & 0x5555555555555555UL);
+			i = (i & 0x3333333333333333UL) + ((i >> 2) & 0x3333333333333333UL);
+			return (int) (unchecked(((i + (i >> 4)) & 0xF0F0F0F0F0F0F0FUL) * 0x101010101010101UL) >> 56);
+		}
+	}
 }
