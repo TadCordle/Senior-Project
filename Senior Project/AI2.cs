@@ -7,7 +7,6 @@ namespace Senior_Project
     sealed class AI2 : AI
     {
         #region Variables
-        int maxX, maxY; // Bounds of the board
         int othercode; // AI's code and the opponent code
 		int[][] positioncheck = new int[][] {
 									new[] { 0, 1 },  new[] { 1, 1 },   new[] { 1, 0 },  new[] { 1, -1 }, 
@@ -20,8 +19,6 @@ namespace Senior_Project
         // Constructor
         public AI2(Board b, int ct) : base(b, ct)
         {
-            maxX = Board.SIZE_X - 1;
-			maxY = Board.SIZE_Y - 1;
             othercode = ct == 1 ? 2 : 1;
         }
 
