@@ -45,7 +45,7 @@ namespace Senior_Project
             {
 				using (Pen p = new Pen(Color.Gray))
 				{
-					for (int i = 1; i < 10; i++)
+					for (int i = 1; i < 8; i++)
 					{
 						g.DrawLine(p, i * 48, 0, i * 48, picBoard.Height);
 						g.DrawLine(p, 0, i * 48, picBoard.Width, i * 48);
