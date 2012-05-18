@@ -7,7 +7,8 @@ namespace Senior_Project
 {
 	sealed class ICanSeeForever : AI
 	{
-        private const int SEARCH_DEPTH = 4;
+		private const int SEARCH_DEPTH = 6;
+		private const double MAX_PLY_TIME = 1.5;
 
 		private static readonly int[][] positioncheck = new int[][] {
 			new[] { 0, 1 },  new[] { 1, 1 },   new[] { 1, 0 },  new[] { 1, -1 }, 
@@ -15,96 +16,111 @@ namespace Senior_Project
             new[] { 0, 2 },  new[] { 2, 2 },   new[] { 2, 0 },  new[] { 2, -2 }, 
             new[] { 0, -2 }, new[] { -2, -2 }, new[] { -2, 0 }, new[] {-2, 2 } };
 
-		private Tree<Move, Board> gameTree = new Tree<Move, Board>();
-        private Dictionary<Board, StateInfo> transTable = new Dictionary<Board, StateInfo>(4096);
-		private HashSet<Board> repetitionCheck = new HashSet<Board>();
-		private Stack<List<BoardTransform>> undoStack = new Stack<List<BoardTransform>>();
+		private Tree<Move, AIBoard> gameTree = new Tree<Move, AIBoard>();
+		private Dictionary<AIBoard, StateInfo> transTable = new Dictionary<AIBoard, StateInfo>(4096);
+		private HashSet<AIBoard> repetitionCheck = new HashSet<AIBoard>();
 
 		private Random rnd = new Random();
 
-		private Board workingBoard;
-        private DateTime startT;
+		private AIBoard workingBoard;
+
+		private int moveNum;
+
+		private DateTime startT;
+		private DateTime depthStart;
 
 #if DEBUG
-        private AI3DebugForm debug;
+		private AI3DebugForm debug;
 
-        private long nodeCnt = 0, transHits = 0, transCuts = 0, evalCalls = 0;
-        private DateTime depthStart;
+		private long nodeCnt = 0, transHits = 0, transCuts = 0, evalCalls = 0;
+		
 #endif
 
 		#region Variables
-		int othercode;
+		int notaicode;
 		#endregion
 
 		// Constructor
 		public ICanSeeForever(Board b, int ct)
 			: base(b, ct)
 		{
-			othercode = ct == 1 ? 2 : 1;
+			notaicode = ct == 1 ? 2 : 1;
 
+			moveNum = 0;
 #if DEBUG
-            debug = new AI3DebugForm();
-            debug.Show();
+			debug = new AI3DebugForm();
+			debug.Show();
 #endif
 		}
 
-        // Destructor
+		// Destructor
 #if DEBUG
-        ~ICanSeeForever()
-        {
-            if (!debug.IsDisposed)
-                if (debug.InvokeRequired)
-                    debug.Invoke(new Action(delegate() { debug.Close(); }));
-                else
-                    debug.Close();
-        }
+		~ICanSeeForever()
+		{
+			if (!debug.IsDisposed)
+				if (debug.InvokeRequired)
+					debug.Invoke(new Action(delegate() { debug.Close(); }));
+				else
+					debug.Close();
+		}
 #endif
 
 		// Makes the AI choose and execute a move
 		public override void MakeMove()
 		{
-			//transTable.Clear();
+			transTable.Clear();
 			repetitionCheck.Clear();
 
-			// Set up root of tree.
-			this.gameTree.Root = new Tree<Move, Board>.Node();
-            this.workingBoard = new Board(board);
+			moveNum++;
 
-			// XXX: TODO - Make this more iterative.
+			// Set up root of tree.
+			this.gameTree.Root = new Tree<Move, AIBoard>.Node();
+			this.workingBoard = new AIBoard(board);
+
+			// TODO - 
 			int best = int.MinValue;
+			int adjusted_depth = SEARCH_DEPTH;
 			Move move = null;
-            startT = DateTime.Now;
-			for (int d = 1; d <= SEARCH_DEPTH; d++)
+			startT = DateTime.Now;
+			for (int d = 1; d <= adjusted_depth; d++)
 			{
 				// Initialize state.
-                List<Move> pv = new List<Move>();
+				List<Move> pv = new List<Move>();
+				depthStart = DateTime.Now;
 #if DEBUG
-                nodeCnt = 0; transHits = 0; transCuts = 0; evalCalls = 0;
-                depthStart = DateTime.Now;
+				nodeCnt = 0; transHits = 0; transCuts = 0; evalCalls = 0;
 #endif
 
-                // Perform bounded depth-first search for the best move score.
+				// Perform bounded depth-first search for the best move score.
 				best = -_search(this.gameTree.Root, d, -int.MaxValue, int.MaxValue, true, pv);
+
+				// If we finished our last ply fast enough (<MAX_PLY_TIME), and we're not in mid-game, go for another.
+				// If the game's over, though, don't bother.
+				if (d == adjusted_depth && moveNum > 25 && (DateTime.Now - depthStart).TotalSeconds < MAX_PLY_TIME
+					&& best < 10000 && best > -10000)
+					adjusted_depth++;
 
 				// WE GOT CALLED TO MAKE A MOVE BUT HAVE NO MOVES TO MAKE. WAT.
 				if (this.gameTree.Root.Count == 0)
 					return;
 
-                if(pv.Count > 0) 
-                    move = pv[0];
+				if (pv.Count > 0)
+					move = pv[0];
 #if DEBUG
-                _trace("[SEARCH] d={0}, n={1}, tHit={2}, tCut={3} ({4}%), e={5}", d, nodeCnt, transHits, transCuts,
-                    Math.Round((double) transCuts / nodeCnt, 2) * 100, evalCalls);
-                _trace("         t={0}s ({1} n/s), PV={2}", Math.Round((DateTime.Now - depthStart).TotalMilliseconds / 1000, 3),
-                    Math.Round(nodeCnt / ((DateTime.Now - depthStart).TotalMilliseconds / 1000), 0),
-                    pv.Aggregate("", new Func<string,Move,string>((a, b) => a + b + " ")).Trim());
+				_trace("[SEARCH] d={0}, n={1}, tHit={2} ({3}%), tCut={4} ({5}%), e={6} ({7}%)", d, nodeCnt, transHits,
+					Math.Round((double) transHits / nodeCnt, 2) * 100, transCuts,
+					Math.Round((double) transCuts / nodeCnt, 2) * 100, evalCalls,
+					Math.Round((double) evalCalls / nodeCnt, 2) * 100);
+				_trace("         t={0}s ({1} n/s), PV={2}", Math.Round((DateTime.Now - depthStart).TotalMilliseconds / 1000, 3),
+					Math.Round(nodeCnt / ((DateTime.Now - depthStart).TotalMilliseconds / 1000), 0),
+					pv.Aggregate("", new Func<string, Move, string>((a, b) => a + b + " ")).Trim());
 #endif
 			}
 
-            Debug.Assert(move != null, "No move! Endgame condition without our notification?");
+			Debug.Assert(move != null, "No move! Endgame condition without our notification?");
 
-            _trace("[EXEC] {0}", move);
-			_executeMove(this.board, move, aicode, othercode);
+			_trace("[EXEC] {0}", move);
+			_executeMove(this.board, move, aicode, notaicode);
 		}
 
 		// Performs an iterative deepening depth-first search, combining the concepts of
@@ -113,87 +129,91 @@ namespace Senior_Project
 		//
 		// α is the minimum score that the maximizing player is assured of.
 		// β is the maximum score that the minimizing player is assured of.
-		private int _search(Tree<Move, Board>.Node node, int depth, int α, int β, bool me, List<Move> pv)
+		private int _search(Tree<Move, AIBoard>.Node node, int depth, int α, int β, bool me, List<Move> pv)
 		{
-			int pcode = me ? aicode : othercode, notpcode = !me ? aicode : othercode;
+			int pcode = me ? aicode : notaicode, notpcode = !me ? aicode : notaicode;
 			StateInfo.ValueType valType = StateInfo.ValueType.Alpha;
 			List<Move> moves = new List<Move>();
 			Move cachedBest = null;
 
-			// Check to see if we already explored this node currently, return draw score.
-			if (this.repetitionCheck.Contains(this.workingBoard))
-				return 0;
-
-			// If we have a cached answer for the score of the current state at a certain depth,
-			// see if we can use it.
-			if (this.transTable.ContainsKey(this.workingBoard))
+			// The following only applies if we're not at the root.
+			if (!object.ReferenceEquals(this.gameTree.Root, node))
 			{
-				var val = this.transTable[this.workingBoard];
+				// Check to see if we already explored this node currently, return draw score.
+				if (this.repetitionCheck.Contains(this.workingBoard))
+					return 0;
 
-				if (val.CodeToMove == pcode)
+				// If we have a cached answer for the score of the current state at a certain depth,
+				// see if we can use it.
+				if (this.transTable.ContainsKey(this.workingBoard))
 				{
-					if (val.Depth >= depth)
+					var val = this.transTable[this.workingBoard];
+
+					if (val.CodeToMove == pcode)
 					{
-						switch (val.Flag)
+						if (val.Depth >= depth)
 						{
-							case StateInfo.ValueType.Exact:
-								// If this was an exact value, we can return it no matter what.
-								node.Value = val.Value;
+							switch (val.Flag)
+							{
+								case StateInfo.ValueType.Exact:
+									// If this was an exact value, we can return it no matter what.
+									node.Value = val.Value;
 
 #if DEBUG
-                                transHits++; // Mark a transposition table hit.
-                                transCuts++;
+									transHits++; // Mark a transposition table hit.
+									transCuts++;
 #endif
 
-								return val.Value;
-							case StateInfo.ValueType.Alpha:
-								// Since alpha was stored, the value of the node was AT MOST this value.
-								// If we can cut off, do that.
-								if (val.Value <= α)
-								{
-									node.Value = α;
+									return val.Value;
+								case StateInfo.ValueType.Alpha:
+									// Since alpha was stored, the value of the node was AT MOST this value.
+									// If we can cut off, do that.
+									if (val.Value <= α)
+									{
+										node.Value = α;
 
 #if DEBUG
-                                    transHits++; // Mark a transposition table hit.
-                                    transCuts++;
+										transHits++; // Mark a transposition table hit.
+										transCuts++;
 #endif
 
-									return α;
-								}
-								break;
-							case StateInfo.ValueType.Beta:
-								// Since beta was stored, the value of the node was AT LEAST this value.
-								// If we can cut off, do that.
-								if (val.Value >= β)
-								{
-									node.Value = β;
+										return α;
+									}
+									break;
+								case StateInfo.ValueType.Beta:
+									// Since beta was stored, the value of the node was AT LEAST this value.
+									// If we can cut off, do that.
+									if (val.Value >= β)
+									{
+										node.Value = β;
 
 #if DEBUG
-                                    transHits++; // Mark a transposition table hit.
-                                    transCuts++;
+										transHits++; // Mark a transposition table hit.
+										transCuts++;
 #endif
 
-									return β;
-								}
-								break;
+										return β;
+									}
+									break;
+							}
 						}
-					}
 
-					// If we have a cached entry, but weren't able to cut off based on it,
-					// try to add the best move first, but only if it's still valid.
-					if (val.Best != null)
-					{
-						var m = val.Best;
-
-						if (this.workingBoard[m.xfrom, m.yfrom] == aicode && this.workingBoard[m.xto, m.yto] == 0)
+						// If we have a cached entry, but weren't able to cut off based on it,
+						// try to add the best move first, but only if it's still valid.
+						if (val.Best != null)
 						{
-							cachedBest = m;
+							var m = val.Best;
+
+							if (this.workingBoard[m.xfrom, m.yfrom] == pcode && this.workingBoard[m.xto, m.yto] == 0)
+							{
+								cachedBest = m;
 
 #if DEBUG
-                            transHits++; // Mark a transposition table hit.
+								transHits++; // Mark a transposition table hit.
 #endif
 
-							moves.Add(m);
+								moves.Add(m);
+							}
 						}
 					}
 				}
@@ -208,7 +228,7 @@ namespace Senior_Project
 				int score = _score(this.workingBoard, pcode, notpcode);
 
 #if DEBUG
-                evalCalls++; // Track a call to the evaluation function.
+				evalCalls++; // Track a call to the evaluation function.
 #endif
 
 				// Cache the answer, and set variables.
@@ -238,7 +258,7 @@ namespace Senior_Project
 			foreach (var move in moveIter)
 			{
 #if DEBUG
-                nodeCnt++; // Increment explored node count.
+				nodeCnt++; // Increment explored node count.
 #endif
 
 				// Get the next node, and modify the board accordingly.
@@ -255,11 +275,11 @@ namespace Senior_Project
 
 				// Get the score of the child. Since we must account for perspective switches,
 				// We negate the value and reverse/negate alpha and beta.
-                var pv2 = new List<Move>();
+				var pv2 = new List<Move>();
 				var moveVal = -_search(nextNode, depth - 1, -β, -α, !me, pv2);
 
 				// We searched, nothing exploded, undo the move.
-				_undoLastMove();
+				this.workingBoard.PopState();
 				Debug.Assert(this.workingBoard.LongHashCode == boardHash, "Move undo was unsuccessful!");
 
 				// If moveVal > α, then this is a decently good move. For all we know, at least.
@@ -280,10 +300,10 @@ namespace Senior_Project
 						return β;
 					}
 
-                    // Found a new best move, update the principal variation.
-                    pv.Clear();
-                    pv.Add(move);
-                    pv.AddRange(pv2);
+					// Found a new best move, update the principal variation.
+					pv.Clear();
+					pv.Add(move);
+					pv.AddRange(pv2);
 
 					valType = StateInfo.ValueType.Exact;
 					cachedBest = move;
@@ -304,64 +324,32 @@ namespace Senior_Project
 		/// <summary>
 		/// Heuristic evaluation of a board state for 'goodness'.
 		/// </summary>
-		private static int _score(Board b, int code, int othercode)
+		private static int _score(AIBoard b, int code, int othercode)
 		{
 			// If b is in a game over state, return a score that represents a win or loss
-            if (b.GameOver)
-            {
-                if (b.Count(code) > b.Count(othercode))
-                    return int.MaxValue - 10;
-                else
-                    return -(int.MaxValue - 10);
-            }
+			if (b.GameOver)
+			{
+				if (b.Count(code) > b.Count(othercode))
+					return int.MaxValue - 10;
+				else
+					return -(int.MaxValue - 10);
+			}
 
 			// There are 3 major components to a good board state:
 			//	- A small perimeter (not many spaces next to friendly pieces, which indicates a good structure)
 			//	- The number of pieces within capturing range of an enemy
 			//	- The friendly piece count
-			int perimeter = 0, pieces = 0, vulnpieces = 0;
+			int perimeter = 0, pieces = b.Count(code), vulnpieces = 0;
 
 			// First find all friendly pieces
-			foreach (GamePiece gp in b)
+			foreach (var gp in b.GetPieces(code))
 			{
-				if (gp.Code == code)
-				{
-					bool vulnerable = false;
-					pieces++;
+				// For each space next to this piece empty, add to the perimeter sum.
+				perimeter += b.EmptyAdjacent(gp.Item1, gp.Item2);
 
-					// Next iterate through each space adjacent to the piece
-					for (int i = 0; i < 8; i++)
-					{
-						if (!Board.SpaceInBounds(gp.x, gp.y, positioncheck[i][0], positioncheck[i][1]))
-							continue;
-						int spacex = gp.x + positioncheck[i][0];
-						int spacey = gp.y + positioncheck[i][1];
-						if (b[spacex, spacey] == 0) // If an empty space is found
-						{
-							// Add to perimter sum if space is not diagonal to piece
-							if (Math.Abs(spacex) != Math.Abs(spacey))
-								perimeter++;
-
-							// If "vulnerable" flag is not activated, check whether piece is in capturing range
-							if (!vulnerable)
-								for (int j = 0; j < 16; j++)
-								{
-									if (!Board.SpaceInBounds(spacex, spacey, positioncheck[j][0], positioncheck[j][1]))
-										continue;
-									int inrangex = spacex + positioncheck[j][0];
-									int inrangey = spacey + positioncheck[j][1];
-
-									// If it is, set flag to true and add to vulnerable piece count
-									if (b[spacex, spacey] == othercode)
-									{
-										vulnerable = true;
-										vulnpieces++;
-										break;
-									}
-								}
-						}
-					}
-				}
+				// If piece can be captured, add to vulnerable pieces.
+				if (b.IsVulnerable(gp.Item1, gp.Item2, othercode))
+					vulnpieces++;
 			}
 
 			// Bring together the scores and apply math to generate the best representative score of the board
@@ -372,31 +360,28 @@ namespace Senior_Project
 		/// Makes a list of all the moves player of code 'code' can make'.
 		/// </summary>
 		// XXX: TODO - optimize this.
-		private static IEnumerable<Move> _findMoves(Board board, int code)
+		private static IEnumerable<Move> _findMoves(AIBoard board, int code)
 		{
 			int ocode = code == 1 ? 2 : 1;
 
 			// Go through all possible moves of each piece of code 'code' on the board
-			foreach (GamePiece gp in board)
+			foreach (var gp in board.GetPieces(code))
 			{
-				if (gp.Code == code)
+				for (int i = 0; i < 16; i++)
 				{
-					for (int i = 0; i < 16; i++)
-					{
-						int xto = gp.x + positioncheck[i][0], yto = gp.y + positioncheck[i][1];
+					int xto = gp.Item1 + positioncheck[i][0], yto = gp.Item2 + positioncheck[i][1];
 
-						if (xto >= Board.SIZE_X || xto < 0 || yto >= Board.SIZE_Y || yto < 0)
-							continue;
-						if (board[xto, yto] != 0)
-							continue;
+					if (xto >= Board.SIZE_X || xto < 0 || yto >= Board.SIZE_Y || yto < 0)
+						continue;
+					if (board[xto, yto] != 0)
+						continue;
 
-                        // Count conversions
-                        int gain = board.Convert(xto, yto, ocode, ocode);
-                        if (i < 8) gain += 1;
+					// Count conversions
+					int gain = board.Gain(xto, yto, ocode);
+					if (i < 8) gain += 1;
 
-                        yield return new Move(gp.x, gp.y, xto, yto, i >= 8, gain);
-						//yield return new Move(gp.x, gp.y, xto, yto, i >= 8, 0); // Conversion count is never used, so 0 is used as a placeholder
-					}
+					yield return new Move(gp.Item1, gp.Item2, xto, yto, i >= 8, gain);
+					//yield return new Move(gp.x, gp.y, xto, yto, i >= 8, 0); // Conversion count is never used, so 0 is used as a placeholder
 				}
 			}
 		}
@@ -430,46 +415,19 @@ namespace Senior_Project
 		{
 			Debug.Assert(this.workingBoard[m.xfrom, m.yfrom] == aicode, "Invalid AI predictive move -- piece not owned!");
 			Debug.Assert(this.workingBoard[m.xto, m.yto] == 0, "Invalid AI predictive move -- space not empty!");
-			var pieceList = new List<BoardTransform>();
+
+			this.workingBoard.PushState();
 
 			if (m.isjump)
-			{
-				pieceList.Add(new BoardTransform() { X = m.xfrom, Y = m.yfrom, PrevCode = aicode });
 				this.workingBoard[m.xfrom, m.yfrom] = 0;
-			}
-
-			pieceList.Add(new BoardTransform() { X = m.xto, Y = m.yto, PrevCode = 0 });
 			this.workingBoard[m.xto, m.yto] = aicode;
-
-			for (int i = -1, xi = m.xto + i; i <= 1; i++, xi = m.xto + i)
-				for (int j = -1, yj = m.yto + j; j <= 1; j++, yj = m.yto + j)
-					if (xi < Board.SIZE_X && xi >= 0 && yj < Board.SIZE_Y && yj >= 0)
-						if (this.workingBoard[xi, yj] == othercode)
-						{
-							this.workingBoard[xi, yj] = aicode;
-
-							pieceList.Add(new BoardTransform() { X = xi, Y = yj, PrevCode = othercode });
-						}
-
-			undoStack.Push(pieceList);
-		}
-
-		/// <summary>
-		/// Undoes a move, following the reverse transform mappings from <see cref="_executeAndPushMove"/>
-		/// </summary>
-		private void _undoLastMove()
-		{
-			Debug.Assert(undoStack.Count > 0, "Undo stack empty, but tried to undo a move!");
-			var pieceList = undoStack.Pop();
-
-			foreach (var trans in pieceList)
-				this.workingBoard[trans.X, trans.Y] = trans.PrevCode;
+			this.workingBoard.Convert(m.xto, m.yto, aicode, othercode);
 		}
 
 		/// <summary>
 		/// Add or update a entry in the hashtable.
 		/// </summary>
-		private void _updateOrAddHash(Board cur, int code, int depth, StateInfo.ValueType flag, int value, Move best)
+		private void _updateOrAddHash(AIBoard cur, int code, int depth, StateInfo.ValueType flag, int value, Move best)
 		{
 			if (!this.transTable.ContainsKey(cur))
 			{
@@ -484,7 +442,6 @@ namespace Senior_Project
 
 			entry.CodeToMove = code;
 			entry.Depth = depth;
-			entry.Best = best;
 			entry.Flag = flag;
 			entry.Value = value;
 
@@ -492,17 +449,16 @@ namespace Senior_Project
 				entry.Best = best;
 		}
 
-        private void _trace(string s, params object[] a) {
-#if DEBUG
-            _trace(string.Format(s, a));
-#endif
-        }
-        private void _trace(string s)
-        {
-#if DEBUG
-            debug.AddTrace(s);
-#endif
-        }
+		[Conditional("DEBUG")]
+		private void _trace(string s, params object[] a)
+		{
+			_trace(string.Format(s, a));
+		}
+		[Conditional("DEBUG")]
+		private void _trace(string s)
+		{
+			debug.AddTrace(s);
+		}
 
 		// Class representing a move
 		public class Move
@@ -568,14 +524,6 @@ namespace Senior_Project
 				Alpha,
 				Beta
 			}
-		}
-
-		// Struct for undoing board transforms.
-		private struct BoardTransform
-		{
-			public int X { get; set; }
-			public int Y { get; set; }
-			public int PrevCode { get; set; }
 		}
 
 		// Game tree.
@@ -654,6 +602,8 @@ namespace Senior_Project
 			private static ulong[][] hashkey = new ulong[64][];
 			private static ulong[] convMasks = new ulong[64]; // Bit masks for piece conversions.
 			private static ulong[] moveMasks = new ulong[64]; // Bit masks for possible move positions.
+			private static ulong[] adjMasks = new ulong[64]; // Bit masks for adjacent pieces. It's similar to piece conversions, so they're generated together.
+			private static ulong[] vulnMasks = new ulong[64]; // Bit masks for calculating vulnerability. If an enemy piece is detected in this area, the piece is considered vulnerable.
 
 			// When the board[] array is projected as a single 4-bit number, this converts
 			// each bit to its corresponding code. 0001 = 1 => code 0, 0010 = 2 => code 1,
@@ -662,6 +612,8 @@ namespace Senior_Project
 
 			private ulong[] board = new ulong[4];
 			private ulong boardHash = 0UL;
+
+			private Stack<Tuple<ulong, ulong, ulong, ulong, ulong>> stateStack = new Stack<Tuple<ulong, ulong, ulong, ulong, ulong>>();
 
 			// Initializes some important values.
 			static AIBoard()
@@ -677,6 +629,12 @@ namespace Senior_Project
 							((ulong) r.Next() << 45) ^ ((ulong) r.Next() << 60);
 				}
 
+				// The AI requires knowledge of adjacent pieces:
+				// - X -
+				// X P X
+				// - X -
+				// Since this is similar to the conversion pattern, this is generated first, and used to build the conversion pattern.
+				//
 				// A piece converts in a pattern looking like this:
 				// X X X
 				// X P X
@@ -684,32 +642,34 @@ namespace Senior_Project
 				// The appropriate bits to be set are, therefore, bit 1, 2, 3, (8 + 1), (8 + 3), (16 + 1), (16 + 2), (16 + 3).
 				// Relative to its index (9) or (1, 1), the bits are (9 - 8), (9 - 7), (9 - 6), 9, (9 + 2), (9 + 8), (9 + 9), (9 + 10).
 				// Dynamically generating these masks is trivial. Some care must be taken for the left and right cols, since those potentially can "wrap" around to the opposite side.
-				for(int y = 0; y < 8; y++)
+				for (int y = 0; y < 8; y++)
 					for (int x = 0; x < 8; x++)
 					{
 						int idx = y * 8 + x;
 
-						convMasks[idx] =
-							(x > 0 ? 1UL.LS(idx - 8) : 0) |
+						adjMasks[idx] =
 							/*   */ (1UL.LS(idx - 7)) |
-							(x < 7 ? 1UL.LS(idx - 6) : 0) |
 							(x > 0 ? 1UL.LS(idx + 0) : 0) |
 							(x < 7 ? 1UL.LS(idx + 2) : 0) |
+							/*   */ (1UL.LS(idx + 9));
+
+						convMasks[idx] = adjMasks[idx] |
+							(x > 0 ? 1UL.LS(idx - 8) : 0) |
+							(x < 7 ? 1UL.LS(idx - 6) : 0) |
 							(x > 0 ? 1UL.LS(idx + 8) : 0) |
-							/*   */ (1UL.LS(idx + 9)) |
 							(x < 7 ? 1UL.LS(idx + 10) : 0);
 					}
 
 				// A piece can possibly move in a pattern looking like this:
 				// X - X - X
 				// - X X X -
-				// - X P X -
+				// X X P X X
 				// - X X X -
 				// X - X - X
 				// The bits, relative to its index (27) or (3, 3), are (27 - 26), (27 - 24), (27 - 22), (27 - 17), (27 - 16), (27 - 15),
 				// (27 - 1), (27 + 1), (27 + 7), (27 + 8), (27 + 9), (27 + 14), (27 + 16), (27 + 18).
 				// Again, care must be taken to exclude any left/right cols that aren't applicable.
-				for(int y = 0; y < 8; y++)
+				for (int y = 0; y < 8; y++)
 					for (int x = 0; x < 8; x++)
 					{
 						int idx = y * 8 + x;
@@ -717,9 +677,26 @@ namespace Senior_Project
 						moveMasks[idx] =
 							(x > 1 ? 1UL.LS(idx - 26) : 0) | (1UL.LS(idx - 24)) | (x < 6 ? 1UL.LS(idx - 22) : 0) |
 							(x > 0 ? 1UL.LS(idx - 17) : 0) | (1UL.LS(idx - 16)) | (x < 7 ? 1UL.LS(idx - 15) : 0) |
-							(x > 0 ? 1UL.LS(idx - 01) : 0) /*                */ | (x < 7 ? 1UL.LS(idx + 01) : 0) |
+							(x > 1 ? 1UL.LS(idx - 02) : 0) | (x > 0 ? 1UL.LS(idx - 01) : 0) | (x < 7 ? 1UL.LS(idx + 01) : 0) | (x < 6 ? 1UL.LS(idx + 02) : 0) |
 							(x > 0 ? 1UL.LS(idx + 07) : 0) | (1UL.LS(idx + 08)) | (x < 7 ? 1UL.LS(idx + 09) : 0) |
 							(x > 1 ? 1UL.LS(idx + 14) : 0) | (1UL.LS(idx + 16)) | (x < 6 ? 1UL.LS(idx + 18) : 0);
+					}
+
+				// A piece is considered vulnerable if an enemy piece can convert it. To check for that, we combine all the move masks with the
+				// spaces adjacent to a given space to form a composite "vulnerability mask."
+				for (int y = 0; y < 8; y++)
+					for (int x = 0; x < 8; x++)
+					{
+						int idx = y * 8 + x;
+
+						for (int i = 0; i < 8; i++)
+						{
+							int xi = x + positioncheck[i][0], yi = y + positioncheck[i][1];
+							if (xi < 0 || xi >= 8 || yi < 0 || yi >= 8)
+								continue;
+
+							vulnMasks[idx] |= moveMasks[yi * 8 + xi];
+						}
 					}
 			}
 
@@ -734,10 +711,18 @@ namespace Senior_Project
 			// Do magic to transform a human-readable x-y pair to the bit-array backed thingy.
 			public int this[int x, int y]
 			{
-				get {
+				get
+				{
+					int seqVal = y * 8 + x; // Calculate 0-63 indexing.
+					ulong bitmask = 1UL << (y * 8 + x); // Find the bit position that represents the space.
+
 					// Projects each ulong as a 4-bit number, with the LSB corresponding to code = 0, and 
 					// MSB corresponding to code = 3, then collapsing that into a code using the array.
-					return bitboardToCode[board[0] | board[1] << 1 | board[2] << 2 | board[3] << 3];
+					return bitboardToCode[
+						(board[0] & bitmask) >> seqVal |
+						(board[1] & bitmask) >> seqVal << 1 |
+						(board[2] & bitmask) >> seqVal << 2 |
+						(board[3] & bitmask) >> seqVal << 3];
 				}
 				set
 				{
@@ -755,10 +740,34 @@ namespace Senior_Project
 				}
 			}
 
+			// Gets whether not the game is over.
+			public bool GameOver
+			{
+				get
+				{
+					return board[0].PopCount() == 0 || !HasMovesLeft(1) ||
+						!HasMovesLeft(2);
+				}
+			}
+
+			public long LongHashCode { get { return (long) this.boardHash; } }
+
 			// Given the opponent's code, calculate the potential gain if a friendly piece were to move to (x, y).
 			public int Gain(int x, int y, int othercode)
 			{
 				return (board[othercode] & convMasks[y * 8 + x]).PopCount();
+			}
+
+			// Given the opponent's code, calculate if a piece is vulnerable.
+			public bool IsVulnerable(int x, int y, int othercode)
+			{
+				return (board[othercode] & vulnMasks[y * 8 + x]) != 0;
+			}
+
+			// Given a location, return the number of empty spaces directly adjacent to the piece.
+			public int EmptyAdjacent(int x, int y)
+			{
+				return (board[0] & adjMasks[y * 8 + x]).PopCount();
 			}
 
 			// Change all spaces adjacent to space (x, y) with code codefrom to code codeto
@@ -800,6 +809,33 @@ namespace Senior_Project
 				}
 
 				return false;
+			}
+
+			// Gets the x and y of all pieces with a given code.
+			public IEnumerable<Tuple<int, int>> GetPieces(int code)
+			{
+				ulong subseg = board[code];
+
+				for (int idx = 0; idx < 64; idx++)
+				{
+					if ((subseg & 0x1) == 0x1)
+						yield return Tuple.Create(idx % 8, idx / 8);
+
+					subseg >>= 1;
+				}
+			}
+
+			// Saves the current board state.
+			public void PushState()
+			{
+				stateStack.Push(Tuple.Create(board[0], board[1], board[2], board[3], boardHash));
+			}
+			// Restores the most recently saved board state.
+			public void PopState()
+			{
+				var t = stateStack.Pop();
+				board = new ulong[] { t.Item1, t.Item2, t.Item3, t.Item4 };
+				boardHash = t.Item5;
 			}
 
 			public override bool Equals(object obj)
