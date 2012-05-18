@@ -7,7 +7,7 @@ namespace Senior_Project
 {
 	sealed class ICanSeeForever : AI
 	{
-		private const int SEARCH_DEPTH = 6;
+		private const int SEARCH_DEPTH = 4;
 		private const double MAX_PLY_TIME = 1.5;
 
 		private static readonly int[][] positioncheck = new int[][] {
@@ -119,7 +119,9 @@ namespace Senior_Project
 
 			Debug.Assert(move != null, "No move! Endgame condition without our notification?");
 
+#if DEBUG
 			_trace("[EXEC] {0}", move);
+#endif
 			_executeMove(this.board, move, aicode, notaicode);
 		}
 
@@ -449,16 +451,17 @@ namespace Senior_Project
 				entry.Best = best;
 		}
 
-		[Conditional("DEBUG")]
+#if DEBUG
 		private void _trace(string s, params object[] a)
 		{
 			_trace(string.Format(s, a));
 		}
-		[Conditional("DEBUG")]
+
 		private void _trace(string s)
 		{
 			debug.AddTrace(s);
 		}
+#endif
 
 		// Class representing a move
 		public class Move
