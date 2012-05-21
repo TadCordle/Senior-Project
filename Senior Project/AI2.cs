@@ -54,7 +54,6 @@ namespace Senior_Project
                 }
             }
 
-			Thread.Sleep(400);
             ExecuteMove(bestMove);
         }
 

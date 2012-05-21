@@ -234,8 +234,6 @@ namespace Senior_Project
 
             #endregion
 
-			Thread.Sleep(400);
-
             // Execute the saved move
             if (jumped)
                 board[curx, cury] = 0;
